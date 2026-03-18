@@ -3,6 +3,7 @@ import '../input/input_action.dart';
 import '../persistence/score_repository.dart';
 import '../rendering/ansi_color.dart';
 import '../rendering/renderer.dart';
+import 'difficulty.dart';
 import 'game_mode.dart';
 import 'gameplay_scene.dart';
 import 'scene.dart';
@@ -11,6 +12,7 @@ final class GameOverScene extends Scene {
   final int score;
   final int highScore;
   final GameMode mode;
+  final Difficulty difficulty;
   final GameStats stats;
   final ScoreRepository _scoreRepo;
   final int _boardColumns;
@@ -22,6 +24,7 @@ final class GameOverScene extends Scene {
     required this.score,
     required this.highScore,
     required this.mode,
+    this.difficulty = Difficulty.normal,
     required ScoreRepository scoreRepo,
     required int boardColumns,
     required int boardRows,
@@ -44,6 +47,7 @@ final class GameOverScene extends Scene {
         return GoTo(() => GameplayScene(
               highScore: best,
               mode: mode,
+              difficulty: difficulty,
               scoreRepo: _scoreRepo,
               boardColumns: _boardColumns,
               boardRows: _boardRows,

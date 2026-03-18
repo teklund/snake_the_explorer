@@ -11,6 +11,7 @@ import '../game_event.dart';
 import '../game_stats.dart';
 import '../systems/spawn_system.dart';
 import '../time_provider.dart';
+import 'difficulty.dart';
 import 'game_mode.dart';
 import 'game_over_scene.dart';
 import 'scene.dart';
@@ -57,6 +58,7 @@ final class GameplayScene extends Scene {
   static const _minMs = 50;
 
   final GameMode _mode;
+  final Difficulty _difficulty;
   final ScoreRepository _scoreRepo;
   final TimeProvider _time;
   final int _boardColumns;
@@ -96,6 +98,7 @@ final class GameplayScene extends Scene {
     Random? random,
     int highScore = 0,
     GameMode mode = GameMode.classic,
+    Difficulty difficulty = Difficulty.normal,
     required ScoreRepository scoreRepo,
     required int boardColumns,
     required int boardRows,
@@ -104,6 +107,7 @@ final class GameplayScene extends Scene {
   })  : _onEvent = onEvent,
         _highScore = highScore,
         _mode = mode,
+        _difficulty = difficulty,
         _scoreRepo = scoreRepo,
         _time = time,
         _boardColumns = boardColumns,
@@ -127,9 +131,13 @@ final class GameplayScene extends Scene {
   Duration get tickDuration {
     if (_isPaused) return const Duration(milliseconds: 200);
     if (_deathFlashTicks > 0) return const Duration(milliseconds: 60);
-    if (_mode == GameMode.timeAttack) return const Duration(milliseconds: 120);
+    if (_mode == GameMode.timeAttack) {
+      final ms = (120 * _difficulty.speedMultiplier).round();
+      return Duration(milliseconds: ms);
+    }
     final level = (_score ~/ 5).clamp(0, 10);
-    final ms = (_baseMs - level * 10).clamp(_minMs, _baseMs);
+    final baseMs = (_baseMs - level * 10).clamp(_minMs, _baseMs);
+    final ms = (baseMs * _difficulty.speedMultiplier).round();
     return Duration(milliseconds: ms);
   }
 
@@ -151,6 +159,7 @@ final class GameplayScene extends Scene {
               score: _score,
               highScore: newHigh,
               mode: _mode,
+              difficulty: _difficulty,
               scoreRepo: _scoreRepo,
               boardColumns: _boardColumns,
               boardRows: _boardRows,

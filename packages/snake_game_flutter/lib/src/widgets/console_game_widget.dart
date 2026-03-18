@@ -17,6 +17,9 @@ import 'swipe_detector.dart';
 /// SharedPreferences key used to persist the selected CRT theme.
 const _themePrefsKey = 'crt_theme';
 
+/// SharedPreferences key used to persist the sound mute setting.
+const _mutePrefsKey = 'sound_muted';
+
 /// A self-contained widget that hosts the entire Snake game.
 ///
 /// On window resize the existing game continues at its original grid size,
@@ -49,10 +52,14 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
 
   CrtTheme _theme = CrtTheme.greenPhosphor;
 
+  /// Whether the mute indicator toast is currently visible.
+  bool _showMuteIndicator = false;
+
   @override
   void initState() {
     super.initState();
     _loadTheme();
+    _loadMuteSetting();
   }
 
   @override
@@ -89,6 +96,32 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   }
 
   // -------------------------------------------------------------------------
+  // Sound mute persistence
+  // -------------------------------------------------------------------------
+
+  Future<void> _loadMuteSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final muted = prefs.getBool(_mutePrefsKey) ?? false;
+    if (mounted) {
+      setState(() => _sound.muted = muted);
+    }
+  }
+
+  Future<void> _saveMuteSetting(bool muted) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_mutePrefsKey, muted);
+  }
+
+  void _toggleMute() {
+    final nowMuted = _sound.toggleMute();
+    _saveMuteSetting(nowMuted);
+    setState(() => _showMuteIndicator = true);
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _showMuteIndicator = false);
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Mobile detection
   // -------------------------------------------------------------------------
 
@@ -120,6 +153,25 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
       case GameEvent.newHighScore:
         _sound.playVictory();
     }
+
+    // Haptic feedback on mobile platforms only.
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android) {
+      switch (data.event) {
+        case GameEvent.foodEaten:
+          HapticFeedback.lightImpact();
+        case GameEvent.bonusEaten:
+        case GameEvent.shrinkPillEaten:
+        case GameEvent.combo:
+          HapticFeedback.mediumImpact();
+        case GameEvent.death:
+        case GameEvent.newHighScore:
+          HapticFeedback.heavyImpact();
+        case GameEvent.portalUsed:
+          HapticFeedback.selectionClick();
+      }
+    }
+
     // The grid position from core uses a +1 offset for the border,
     // so pass the raw col/row — the particle overlay maps to pixels.
     _particleKey.currentState?.spawnEvent(
@@ -176,11 +228,17 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   // -------------------------------------------------------------------------
 
   void _handleKeyEvent(KeyEvent event) {
-    // Intercept the T key for theme cycling before forwarding to the game.
-    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
-        event.logicalKey == LogicalKeyboardKey.keyT) {
-      _cycleTheme();
-      return;
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      // Intercept the T key for theme cycling before forwarding to the game.
+      if (event.logicalKey == LogicalKeyboardKey.keyT) {
+        _cycleTheme();
+        return;
+      }
+      // Intercept the M key for sound mute toggling.
+      if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        _toggleMute();
+        return;
+      }
     }
     _inputProvider.handleKeyEvent(event);
   }
@@ -317,7 +375,41 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                 child: content,
               );
 
-              return Center(child: content);
+              return Stack(
+                children: [
+                  Center(child: content),
+                  if (_showMuteIndicator)
+                    Positioned(
+                      top: 16,
+                      right: 16,
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: _showMuteIndicator ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: _theme.glowColor),
+                            ),
+                            child: Text(
+                              _sound.isMuted ? 'SOUND OFF' : 'SOUND ON',
+                              style: TextStyle(
+                                color: _theme.glowColor,
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
         ),

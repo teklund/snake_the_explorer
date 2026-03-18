@@ -19,6 +19,20 @@ final class SoundManager {
   late final Uint8List _deathWav;
   late final Uint8List _victoryWav;
 
+  bool _muted = false;
+
+  /// Whether all sound playback is currently suppressed.
+  bool get isMuted => _muted;
+
+  /// Sets the muted state directly.
+  set muted(bool value) => _muted = value;
+
+  /// Toggles mute on/off and returns the new muted state.
+  bool toggleMute() {
+    _muted = !_muted;
+    return _muted;
+  }
+
   SoundManager() {
     // Short high-pitched blip for eating food.
     _eatWav = _generateTone(frequency: 880, durationMs: 60, volume: 0.3);
@@ -50,6 +64,7 @@ final class SoundManager {
   void playVictory() => _play(_victoryPlayer, _victoryWav);
 
   void _play(AudioPlayer player, Uint8List wav) {
+    if (_muted) return;
     player.play(BytesSource(wav));
   }
 
