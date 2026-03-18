@@ -3,6 +3,12 @@
 .packages
 build/
 pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Generated
+*.g.dart
+*.freezed.dart
 
 # IDE
 .idea/
@@ -11,7 +17,23 @@ pubspec.lock
 
 # macOS
 .DS_Store
+**/.DS_Store
 
-# Flutter
-*.g.dart
+# Windows
+Thumbs.db
+
+# Linux
+*~
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Claude
 .claude/
+
+# Coverage
+coverage/
+*.lcov

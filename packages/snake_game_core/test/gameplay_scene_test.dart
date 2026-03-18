@@ -23,6 +23,7 @@ class _FakeTime implements TimeProvider {
 GameplayScene _scene({
   _MockScoreRepo? scoreRepo,
   GameMode mode = GameMode.classic,
+  Difficulty difficulty = Difficulty.normal,
   int highScore = 0,
   Random? random,
   TimeProvider? time,
@@ -35,6 +36,7 @@ GameplayScene _scene({
     boardColumns: 42,
     boardRows: 28,
     mode: mode,
+    difficulty: difficulty,
     highScore: highScore,
     random: random,
     time: time ?? const SystemTimeProvider(),
@@ -310,6 +312,57 @@ void main() {
       scene.update(InputAction.moveUp);
       _tickN(scene, 6); // trigger death
       expect(scene.tickDuration, equals(const Duration(milliseconds: 60)));
+    });
+  });
+
+  group('Difficulty affects tick duration', () {
+    test('easy difficulty is slower than normal', () {
+      final easy = _scene(difficulty: Difficulty.easy);
+      final normal = _scene(difficulty: Difficulty.normal);
+      expect(
+        easy.tickDuration.inMilliseconds,
+        greaterThan(normal.tickDuration.inMilliseconds),
+      );
+    });
+
+    test('hard difficulty is faster than normal', () {
+      final hard = _scene(difficulty: Difficulty.hard);
+      final normal = _scene(difficulty: Difficulty.normal);
+      expect(
+        hard.tickDuration.inMilliseconds,
+        lessThan(normal.tickDuration.inMilliseconds),
+      );
+    });
+
+    test('easy tick duration is 225ms at score 0 (150 * 1.5)', () {
+      final scene = _scene(difficulty: Difficulty.easy);
+      expect(scene.tickDuration, equals(const Duration(milliseconds: 225)));
+    });
+
+    test('normal tick duration is 150ms at score 0 (150 * 1.0)', () {
+      final scene = _scene(difficulty: Difficulty.normal);
+      expect(scene.tickDuration, equals(const Duration(milliseconds: 150)));
+    });
+
+    test('hard tick duration is 105ms at score 0 (150 * 0.7)', () {
+      final scene = _scene(difficulty: Difficulty.hard);
+      expect(scene.tickDuration, equals(const Duration(milliseconds: 105)));
+    });
+
+    test('time attack easy is 180ms (120 * 1.5)', () {
+      final scene = _scene(
+        mode: GameMode.timeAttack,
+        difficulty: Difficulty.easy,
+      );
+      expect(scene.tickDuration, equals(const Duration(milliseconds: 180)));
+    });
+
+    test('time attack hard is 84ms (120 * 0.7)', () {
+      final scene = _scene(
+        mode: GameMode.timeAttack,
+        difficulty: Difficulty.hard,
+      );
+      expect(scene.tickDuration, equals(const Duration(milliseconds: 84)));
     });
   });
 }
