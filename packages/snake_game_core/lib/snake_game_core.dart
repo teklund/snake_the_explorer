@@ -2,6 +2,7 @@ library;
 
 export 'src/entities/direction.dart';
 export 'src/game_event.dart';
+export 'src/game_stats.dart';
 export 'src/entities/snake.dart';
 export 'src/entities/vector2.dart';
 export 'src/game_loop.dart';

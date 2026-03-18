@@ -8,6 +8,7 @@ import '../persistence/score_repository.dart';
 import '../rendering/ansi_color.dart';
 import '../rendering/renderer.dart';
 import '../game_event.dart';
+import '../game_stats.dart';
 import '../systems/spawn_system.dart';
 import '../time_provider.dart';
 import 'game_mode.dart';
@@ -75,6 +76,13 @@ final class GameplayScene extends Scene {
   int _comboCount = 0;
   int _ticksSinceLastFood = 0;
   int _comboTextTicks = 0;
+
+  // Stats
+  int _foodsEaten = 0;
+  int _bonusesEaten = 0;
+  int _maxCombo = 0;
+  int _maxLength = 3;
+  int _portalsUsed = 0;
 
   // Time Attack
   DateTime? _startTime;
@@ -145,6 +153,14 @@ final class GameplayScene extends Scene {
               scoreRepo: _scoreRepo,
               boardColumns: _boardColumns,
               boardRows: _boardRows,
+              onEvent: _onEvent,
+              stats: GameStats(
+                foodsEaten: _foodsEaten,
+                bonusesEaten: _bonusesEaten,
+                maxCombo: _maxCombo,
+                maxLength: _maxLength,
+                portalsUsed: _portalsUsed,
+              ),
             ));
       }
       return const Stay();
@@ -257,10 +273,12 @@ final class GameplayScene extends Scene {
       if (h == _spawns.portalA) {
         _snake = Snake(body: [_spawns.portalB!, ..._snake.body.skip(1)], direction: _snake.direction);
         _needsFullRedraw = true;
+        _portalsUsed++;
         _fireEvent(GameEvent.portalUsed);
       } else if (h == _spawns.portalB) {
         _snake = Snake(body: [_spawns.portalA!, ..._snake.body.skip(1)], direction: _snake.direction);
         _needsFullRedraw = true;
+        _portalsUsed++;
         _fireEvent(GameEvent.portalUsed);
       }
     }
@@ -294,6 +312,7 @@ final class GameplayScene extends Scene {
   void _handlePickup({required bool atFood, required bool atBonus, required bool atShrink}) {
     if (atBonus) {
       _score += 3;
+      _bonusesEaten++;
       _spawns.consumeBonusFood();
       _snake = _snake.grow();
       _fireEvent(GameEvent.bonusEaten);
@@ -303,11 +322,13 @@ final class GameplayScene extends Scene {
       _needsFullRedraw = true;
       _fireEvent(GameEvent.shrinkPillEaten);
     } else {
+      _foodsEaten++;
       if (_ticksSinceLastFood <= _comboWindowTicks && _comboCount > 0) {
         _comboCount++;
       } else {
         _comboCount = 1;
       }
+      if (_comboCount > _maxCombo) _maxCombo = _comboCount;
       _ticksSinceLastFood = 0;
       _score += _comboCount;
       if (_comboCount >= 2) {
@@ -322,6 +343,7 @@ final class GameplayScene extends Scene {
       _prevTail = null;
       _fireEvent(GameEvent.foodEaten);
     }
+    if (_snake.length > _maxLength) _maxLength = _snake.length;
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
