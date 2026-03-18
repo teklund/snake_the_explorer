@@ -53,6 +53,9 @@ final class CrtOverlayPainter extends CustomPainter {
 }
 
 /// A widget that layers CRT visual effects over its [child].
+///
+/// Adds a subtle green phosphor bloom glow around the game area,
+/// scanlines, and a corner vignette for an authentic retro feel.
 class CrtOverlay extends StatelessWidget {
   final Widget child;
 
@@ -60,17 +63,36 @@ class CrtOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        child,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: const CrtOverlayPainter(),
-            ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1833CC33), // green phosphor glow
+            blurRadius: 30,
+            spreadRadius: 8,
           ),
+        ],
+        border: Border.all(
+          color: const Color(0x30666666),
+          width: 1,
         ),
-      ],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(
+          children: [
+            child,
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: const CrtOverlayPainter(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
