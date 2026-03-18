@@ -1,12 +1,12 @@
 {
-    "name": "snake_game_flutter",
-    "short_name": "snake_game_flutter",
+    "name": "Snake the Explorer",
+    "short_name": "Snake",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0a0a14",
+    "theme_color": "#33cc33",
+    "description": "A retro console-style snake game with CRT effects",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {

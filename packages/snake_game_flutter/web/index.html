@@ -1,46 +1,184 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Snake the Explorer - A retro console-style snake game">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="snake_game_flutter">
+  <meta name="apple-mobile-web-app-title" content="Snake the Explorer">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>snake_game_flutter</title>
+  <title>Snake the Explorer</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+
+    #loading {
+      text-align: center;
+      color: #33cc33;
+      position: relative;
+    }
+
+    /* CRT scanline overlay */
+    #loading::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 2px,
+        rgba(0, 0, 0, 0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Vignette */
+    #loading::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+      pointer-events: none;
+      z-index: 11;
+    }
+
+    .title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      text-shadow: 0 0 20px #33cc33, 0 0 40px #33cc3366;
+      margin-bottom: 2rem;
+      letter-spacing: 0.15em;
+    }
+
+    /* Animated snake made of blocks */
+    .snake-loader {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 2rem;
+    }
+
+    .snake-segment {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      background: #33cc33;
+      box-shadow: 0 0 8px #33cc3388;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .snake-segment:nth-child(1) {
+      background: #66ff66;
+      box-shadow: 0 0 12px #66ff6688;
+      border-radius: 3px;
+    }
+
+    .snake-segment:nth-child(2) { animation-delay: 0.1s; }
+    .snake-segment:nth-child(3) { animation-delay: 0.2s; }
+    .snake-segment:nth-child(4) { animation-delay: 0.3s; }
+    .snake-segment:nth-child(5) { animation-delay: 0.4s; }
+    .snake-segment:nth-child(6) { animation-delay: 0.5s; }
+    .snake-segment:nth-child(7) { animation-delay: 0.6s; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .status {
+      font-size: 0.9rem;
+      color: #33cc3399;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .status::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+
+    /* Food dot blinking */
+    .food {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #ff3333;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #ff333388;
+      animation: blink 0.8s ease-in-out infinite alternate;
+      margin-left: 12px;
+      vertical-align: middle;
+    }
+
+    @keyframes blink {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+
+    /* Fade out when Flutter is ready */
+    .loaded #loading {
+      opacity: 0;
+      transition: opacity 0.4s ease-out;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading">
+    <div class="title">SNAKE THE EXPLORER</div>
+    <div class="snake-loader">
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="snake-segment"></div>
+      <div class="food"></div>
+    </div>
+    <div class="status">initializing</div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    {{flutter_js}}
+    {{flutter_build_config}}
+
+    _flutter.loader.load({
+      onEntrypointLoaded: async function(engineInitializer) {
+        const appRunner = await engineInitializer.initializeEngine();
+        document.body.classList.add('loaded');
+        await new Promise(r => setTimeout(r, 400));
+        await appRunner.runApp();
+      }
+    });
+  </script>
 </body>
 </html>

@@ -99,9 +99,11 @@ class CrtOverlay extends StatelessWidget {
           children: [
             child,
             Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: CrtOverlayPainter(scanlineTint: scanlineTint),
+              child: ExcludeSemantics(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: CrtOverlayPainter(scanlineTint: scanlineTint),
+                  ),
                 ),
               ),
             ),

@@ -89,6 +89,20 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   }
 
   // -------------------------------------------------------------------------
+  // Mobile detection
+  // -------------------------------------------------------------------------
+
+  /// Detects mobile web browsers that [defaultTargetPlatform] might miss
+  /// (e.g. iPads in desktop mode report as [TargetPlatform.macOS]).
+  /// Falls back to a narrow-viewport heuristic when running on the web.
+  static bool _isMobileWeb(BuildContext context) {
+    if (!kIsWeb) return false;
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    // Treat viewports whose shortest side is <=600 dp as mobile/tablet.
+    return shortestSide <= 600;
+  }
+
+  // -------------------------------------------------------------------------
   // Game events
   // -------------------------------------------------------------------------
 
@@ -248,28 +262,37 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
               final canvasWidth = r.columns * _cellWidth;
               final canvasHeight = r.rows * _cellHeight;
 
-              final gameCanvas = ParticleOverlay(
-                key: _particleKey,
-                cellWidth: _cellWidth,
-                cellHeight: _cellHeight,
-                child: CrtOverlay(
-                  glowColor: _theme.glowColor,
-                  scanlineTint: _theme.scanlineTint,
-                  child: CustomPaint(
-                    painter: ConsoleGridPainter(
-                      buffer: r.buffer,
-                      cellWidth: _cellWidth,
-                      cellHeight: _cellHeight,
-                      theme: _theme,
+              final gameCanvas = Semantics(
+                label: 'Snake game canvas',
+                excludeSemantics: true,
+                child: ParticleOverlay(
+                  key: _particleKey,
+                  cellWidth: _cellWidth,
+                  cellHeight: _cellHeight,
+                  child: CrtOverlay(
+                    glowColor: _theme.glowColor,
+                    scanlineTint: _theme.scanlineTint,
+                    child: CustomPaint(
+                      painter: ConsoleGridPainter(
+                        buffer: r.buffer,
+                        cellWidth: _cellWidth,
+                        cellHeight: _cellHeight,
+                        theme: _theme,
+                      ),
+                      size: Size(canvasWidth, canvasHeight),
                     ),
-                    size: Size(canvasWidth, canvasHeight),
                   ),
                 ),
               );
 
+              // Show D-pad on native mobile AND mobile web.
+              // On Flutter web, defaultTargetPlatform still reports
+              // the underlying OS (iOS/Android), so a single platform
+              // check covers both native and web mobile users.
               final isMobile =
                   defaultTargetPlatform == TargetPlatform.iOS ||
-                  defaultTargetPlatform == TargetPlatform.android;
+                  defaultTargetPlatform == TargetPlatform.android ||
+                  _isMobileWeb(context);
 
               Widget content = isMobile
                   ? Stack(
