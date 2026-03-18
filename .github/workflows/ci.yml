@@ -220,7 +220,7 @@ jobs:
         run: cd packages/snake_game_flutter && flutter build web --base-href /snake_the_explorer/
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: packages/snake_game_flutter/build/web
 
