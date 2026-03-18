@@ -1,0 +1,14 @@
+name: snake_game_cli
+description: Terminal-based Snake game using dart:io.
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  snake_game_core:
+
+dev_dependencies:
+  test: ^1.25.0
+  mocktail: ^1.0.0

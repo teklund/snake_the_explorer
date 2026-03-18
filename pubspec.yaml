@@ -1,0 +1,7 @@
+name: snake_the_explorer_workspace
+environment:
+  sdk: ^3.11.0
+workspace:
+  - packages/snake_game_core
+  - packages/snake_game_cli
+  - packages/snake_game_flutter

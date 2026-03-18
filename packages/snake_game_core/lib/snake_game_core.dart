@@ -1,0 +1,17 @@
+library;
+
+export 'src/entities/direction.dart';
+export 'src/entities/snake.dart';
+export 'src/entities/vector2.dart';
+export 'src/game_loop.dart';
+export 'src/input/input_action.dart';
+export 'src/input/input_provider.dart';
+export 'src/persistence/score_repository.dart';
+export 'src/rendering/ansi_color.dart';
+export 'src/rendering/renderer.dart';
+export 'src/scenes/game_mode.dart';
+export 'src/scenes/game_over_scene.dart';
+export 'src/scenes/gameplay_scene.dart';
+export 'src/scenes/menu_scene.dart';
+export 'src/scenes/scene.dart';
+export 'src/scenes/scene_manager.dart';

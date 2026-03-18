@@ -1,0 +1,11 @@
+name: snake_game_core
+description: Platform-agnostic Snake game logic.
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dev_dependencies:
+  test: ^1.25.0
+  mocktail: ^1.0.0
