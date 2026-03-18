@@ -6,7 +6,7 @@ Built as a Dart pub workspace mono-repo with a platform-agnostic core, a native 
 
 ## Play
 
-**Web** — [Play in your browser](https://teklund.github.io/snake_the_explorer/)
+**Web** — [Play in your browser](https://snake.teklund.dev)
 
 **CLI** — Download a native binary from [Releases](https://github.com/teklund/snake_the_explorer/releases), or run from source:
 

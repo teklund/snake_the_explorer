@@ -217,7 +217,10 @@ jobs:
         run: dart pub get
 
       - name: Build Web for GitHub Pages
-        run: cd packages/snake_game_flutter && flutter build web --base-href /snake_the_explorer/
+        run: cd packages/snake_game_flutter && flutter build web --base-href /
+
+      - name: Add CNAME for custom domain
+        run: cp packages/snake_game_flutter/web/CNAME packages/snake_game_flutter/build/web/CNAME
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
