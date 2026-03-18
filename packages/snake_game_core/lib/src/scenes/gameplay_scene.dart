@@ -83,6 +83,7 @@ final class GameplayScene extends Scene {
   int _maxCombo = 0;
   int _maxLength = 3;
   int _portalsUsed = 0;
+  bool _highScoreBeaten = false;
 
   // Time Attack
   DateTime? _startTime;
@@ -344,6 +345,10 @@ final class GameplayScene extends Scene {
       _fireEvent(GameEvent.foodEaten);
     }
     if (_snake.length > _maxLength) _maxLength = _snake.length;
+    if (!_highScoreBeaten && _highScore > 0 && _score > _highScore) {
+      _highScoreBeaten = true;
+      _fireEvent(GameEvent.newHighScore);
+    }
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ enum GameEvent {
   death,
   combo,
   portalUsed,
+  newHighScore,
 }
 
 /// Payload for a game event including the grid position where it occurred.

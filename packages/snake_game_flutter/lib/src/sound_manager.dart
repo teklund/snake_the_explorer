@@ -12,10 +12,12 @@ final class SoundManager {
   final AudioPlayer _eatPlayer = AudioPlayer();
   final AudioPlayer _bonusPlayer = AudioPlayer();
   final AudioPlayer _deathPlayer = AudioPlayer();
+  final AudioPlayer _victoryPlayer = AudioPlayer();
 
   late final Uint8List _eatWav;
   late final Uint8List _bonusWav;
   late final Uint8List _deathWav;
+  late final Uint8List _victoryWav;
 
   SoundManager() {
     // Short high-pitched blip for eating food.
@@ -34,11 +36,18 @@ final class SoundManager {
       durationMs: 300,
       volume: 0.4,
     );
+    // Rising arpeggio for new high score (C5 → E5 → G5 → C6).
+    _victoryWav = _generateArpeggio(
+      frequencies: [523, 659, 784, 1047],
+      noteDurationMs: 80,
+      volume: 0.35,
+    );
   }
 
   void playEat() => _play(_eatPlayer, _eatWav);
   void playBonus() => _play(_bonusPlayer, _bonusWav);
   void playDeath() => _play(_deathPlayer, _deathWav);
+  void playVictory() => _play(_victoryPlayer, _victoryWav);
 
   void _play(AudioPlayer player, Uint8List wav) {
     player.play(BytesSource(wav));
@@ -48,6 +57,7 @@ final class SoundManager {
     _eatPlayer.dispose();
     _bonusPlayer.dispose();
     _deathPlayer.dispose();
+    _victoryPlayer.dispose();
   }
 
   /// Generate a mono 16-bit 44100 Hz WAV with a single sine tone.
@@ -91,6 +101,32 @@ final class SoundManager {
       final envelope = 1.0 - progress;
       samples[i] =
           (math.sin(2 * math.pi * freq * t) * maxAmp * envelope).round();
+    }
+
+    return _wavFromSamples(samples, sampleRate);
+  }
+
+  /// Generate a sequence of notes (arpeggio).
+  static Uint8List _generateArpeggio({
+    required List<double> frequencies,
+    required int noteDurationMs,
+    required double volume,
+  }) {
+    const sampleRate = 44100;
+    final samplesPerNote = (sampleRate * noteDurationMs / 1000).round();
+    final totalSamples = samplesPerNote * frequencies.length;
+    final samples = Int16List(totalSamples);
+    final maxAmp = (32767 * volume).round();
+
+    for (var n = 0; n < frequencies.length; n++) {
+      final freq = frequencies[n];
+      final offset = n * samplesPerNote;
+      for (var i = 0; i < samplesPerNote; i++) {
+        final t = i / sampleRate;
+        final envelope = 1.0 - (i / samplesPerNote) * 0.5; // gentle fade
+        samples[offset + i] =
+            (math.sin(2 * math.pi * freq * t) * maxAmp * envelope).round();
+      }
     }
 
     return _wavFromSamples(samples, sampleRate);

@@ -60,6 +60,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
         _sound.playBonus();
       case GameEvent.death:
         _sound.playDeath();
+      case GameEvent.newHighScore:
+        _sound.playVictory();
     }
     // The grid position from core uses a +1 offset for the border,
     // so pass the raw col/row — the particle overlay maps to pixels.

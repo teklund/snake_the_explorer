@@ -146,6 +146,12 @@ class ParticleOverlayState extends State<ParticleOverlay>
       case GameEvent.death:
         _spawnExplosion(cx, cy);
         _shakeIntensity = 12.0;
+      case GameEvent.newHighScore:
+        _spawnBurst(cx, cy, count: 24, speed: 120, colors: [
+          mapAnsiColor(AnsiColor.yellow),
+          Colors.white,
+          const Color(0xFFFFCC00),
+        ]);
     }
 
     if (!_ticker.isActive) {
