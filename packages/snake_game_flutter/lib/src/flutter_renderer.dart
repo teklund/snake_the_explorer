@@ -15,6 +15,10 @@ final class FlutterRenderer implements Renderer {
   int _cursorCol = 0;
   VoidCallback? onFlush;
 
+  /// Whether the cursor should be displayed. Controlled by game scenes via
+  /// [showCursor] / [hideCursor].
+  bool cursorVisible = false;
+
   FlutterRenderer({required this.columns, required this.rows}) {
     _buffer = _emptyBuffer();
   }
@@ -26,6 +30,12 @@ final class FlutterRenderer implements Renderer {
 
   /// The current frame buffer for painting.
   List<List<Cell>> get buffer => _buffer;
+
+  /// The current cursor row position.
+  int get cursorRow => _cursorRow;
+
+  /// The current cursor column position.
+  int get cursorCol => _cursorCol;
 
   @override
   void moveCursor(int row, int col) {
@@ -63,10 +73,14 @@ final class FlutterRenderer implements Renderer {
   }
 
   @override
-  void hideCursor() {}
+  void hideCursor() {
+    cursorVisible = false;
+  }
 
   @override
-  void showCursor() {}
+  void showCursor() {
+    cursorVisible = true;
+  }
 
   @override
   void restore() {}

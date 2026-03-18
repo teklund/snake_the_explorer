@@ -44,12 +44,28 @@ final class ConsoleGridPainter extends CustomPainter {
   /// Explicitly clears the text painter cache, e.g. after a theme change.
   static void clearCache() => _cache.clear();
 
+  /// Whether the cursor should be drawn.
+  final bool cursorVisible;
+
+  /// The row position of the cursor in the grid.
+  final int cursorRow;
+
+  /// The column position of the cursor in the grid.
+  final int cursorCol;
+
+  /// Blink phase from 0.0 to 1.0. The cursor is shown when >= 0.5.
+  final double blinkPhase;
+
   ConsoleGridPainter({
     required this.buffer,
     required this.cellWidth,
     required this.cellHeight,
     this.fontFamily = 'JetBrainsMono',
     this.theme = CrtTheme.greenPhosphor,
+    this.cursorVisible = false,
+    this.cursorRow = 0,
+    this.cursorCol = 0,
+    this.blinkPhase = 0.0,
   });
 
   @override
@@ -59,13 +75,33 @@ final class ConsoleGridPainter extends CustomPainter {
 
     for (final run in runs) {
       final tp = _getOrCreate(run.text, run.color, fontSize);
-      final x = run.startCol * cellWidth;
-      final y = run.row * cellHeight;
+      final x = (run.startCol * cellWidth).roundToDouble();
+      final verticalOffset =
+          ((cellHeight - tp.height) / 2).roundToDouble();
+      final y = (run.row * cellHeight + verticalOffset).roundToDouble();
       tp.paint(canvas, Offset(x, y));
     }
 
     if (_cache.length > _maxCacheSize) {
       _cache.clear();
+    }
+
+    // Draw blinking block cursor when visible and in the "on" phase.
+    if (cursorVisible &&
+        blinkPhase >= 0.5 &&
+        cursorRow >= 0 &&
+        cursorRow < buffer.length &&
+        cursorCol >= 0 &&
+        cursorCol < (buffer.isEmpty ? 0 : buffer[0].length)) {
+      final cursorPaint = Paint()
+        ..color = theme.mapColor(AnsiColor.green).withAlpha(200);
+      final cursorRect = Rect.fromLTWH(
+        cursorCol * cellWidth,
+        cursorRow * cellHeight,
+        cellWidth * 0.55, // half-block width (▌ style)
+        cellHeight,
+      );
+      canvas.drawRect(cursorRect, cursorPaint);
     }
   }
 
@@ -130,14 +166,19 @@ final class ConsoleGridPainter extends CustomPainter {
     final cached = _cache[key];
     if (cached != null) return cached;
 
+    final textColor = mapAnsiColor(color, theme);
     final tp = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontFamily: fontFamily,
           fontSize: fontSize,
-          color: mapAnsiColor(color, theme),
           height: 1.0,
+          letterSpacing: 0,
+          fontFeatures: const [ui.FontFeature.tabularFigures()],
+          foreground: Paint()
+            ..color = textColor
+            ..isAntiAlias = false,
         ),
       ),
       textDirection: ui.TextDirection.ltr,

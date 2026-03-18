@@ -13,6 +13,7 @@ import 'crt_overlay.dart';
 import 'dpad_widget.dart';
 import 'particle_overlay.dart';
 import 'swipe_detector.dart';
+import 'terminal_chrome.dart';
 
 /// SharedPreferences key used to persist the selected CRT theme.
 const _themePrefsKey = 'crt_theme';
@@ -34,7 +35,8 @@ class ConsoleGameWidget extends StatefulWidget {
   State<ConsoleGameWidget> createState() => _ConsoleGameWidgetState();
 }
 
-class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
+class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
+    with SingleTickerProviderStateMixin {
   static const _cellWidth = 10.0;
   static const _cellHeight = 18.0;
 
@@ -55,15 +57,31 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   /// Whether the mute indicator toast is currently visible.
   bool _showMuteIndicator = false;
 
+  /// Drives the cursor blink animation. Repeats a 0.0 -> 1.0 cycle every
+  /// 530 ms (standard terminal blink rate).
+  late final AnimationController _cursorBlinkController;
+
   @override
   void initState() {
     super.initState();
+    _cursorBlinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 530),
+    )..repeat();
+    _cursorBlinkController.addListener(() {
+      // Only rebuild when the cursor is actually visible — avoids unnecessary
+      // repaints during gameplay.
+      if (_renderer?.cursorVisible ?? false) {
+        setState(() {});
+      }
+    });
     _loadTheme();
     _loadMuteSetting();
   }
 
   @override
   void dispose() {
+    _cursorBlinkController.dispose();
     _loop?.stop();
     _sound.dispose();
     _focusNode.dispose();
@@ -263,12 +281,15 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
               final maxRows = (constraints.maxHeight / _cellHeight).floor();
 
               if (maxColumns < 20 || maxRows < 10) {
-                return const Center(
+                return Center(
                   child: Text(
-                    'Window too small',
+                    'Terminal too small\nResize window...',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white54,
+                      color: _theme.mapColor(AnsiColor.darkGray),
                       fontFamily: 'JetBrainsMono',
+                      fontSize: 14,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                 );
@@ -284,31 +305,56 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
               }
 
               if (_quit) {
+                // Render quit screen in terminal style — monospace text on
+                // dark background, matching the CRT aesthetic.
+                final quitColor = _theme.mapColor(AnsiColor.green);
+                final mutedColor = _theme.mapColor(AnsiColor.darkGray);
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Thanks for playing!',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 18,
-                        ),
+                  child: TerminalChrome(
+                    backgroundColor: _theme.backgroundColor,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 24,
                       ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => _startGame(maxColumns, maxRows),
-                        child: const Text(
-                          'Play Again',
-                          style: TextStyle(
-                            color: Colors.greenAccent,
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 16,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Thanks for playing!',
+                            style: TextStyle(
+                              color: quitColor,
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 18,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$ _',
+                            style: TextStyle(
+                              color: mutedColor,
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 14,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: () => _startGame(maxColumns, maxRows),
+                            child: Text(
+                              '[ Play Again ]',
+                              style: TextStyle(
+                                color: quitColor,
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 16,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 );
               }
@@ -336,6 +382,10 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                         cellWidth: _cellWidth,
                         cellHeight: _cellHeight,
                         theme: _theme,
+                        cursorVisible: r.cursorVisible,
+                        cursorRow: r.cursorRow,
+                        cursorCol: r.cursorCol,
+                        blinkPhase: _cursorBlinkController.value,
                       ),
                       size: Size(canvasWidth, canvasHeight),
                     ),
@@ -377,7 +427,12 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
 
               return Stack(
                 children: [
-                  Center(child: content),
+                  Center(
+                    child: TerminalChrome(
+                      backgroundColor: _theme.backgroundColor,
+                      child: content,
+                    ),
+                  ),
                   if (_showMuteIndicator)
                     Positioned(
                       top: 16,
