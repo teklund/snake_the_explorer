@@ -18,6 +18,7 @@ final class FlutterInputProvider implements InputProvider {
   }
 
   InputAction? _mapKey(LogicalKeyboardKey key) => switch (key) {
+        // Keyboard
         LogicalKeyboardKey.arrowUp || LogicalKeyboardKey.keyW => InputAction.moveUp,
         LogicalKeyboardKey.arrowDown || LogicalKeyboardKey.keyS => InputAction.moveDown,
         LogicalKeyboardKey.arrowLeft || LogicalKeyboardKey.keyA => InputAction.moveLeft,
@@ -25,6 +26,11 @@ final class FlutterInputProvider implements InputProvider {
         LogicalKeyboardKey.keyQ || LogicalKeyboardKey.escape => InputAction.quit,
         LogicalKeyboardKey.keyP => InputAction.pause,
         LogicalKeyboardKey.enter || LogicalKeyboardKey.space => InputAction.confirm,
+        // Gamepad D-pad (reported as keyboard keys on most controllers)
+        LogicalKeyboardKey.gameButtonA => InputAction.confirm,
+        LogicalKeyboardKey.gameButtonB => InputAction.quit,
+        LogicalKeyboardKey.gameButtonSelect => InputAction.pause,
+        LogicalKeyboardKey.gameButtonStart => InputAction.confirm,
         _ => null,
       };
 

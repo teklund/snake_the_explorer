@@ -1,15 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:snake_game_core/snake_game_core.dart';
 
 import '../flutter_input_provider.dart';
 import '../flutter_renderer.dart';
+import '../sound_manager.dart';
 import 'console_grid_painter.dart';
+import 'crt_overlay.dart';
+import 'dpad_widget.dart';
 import 'swipe_detector.dart';
 
 /// A self-contained widget that hosts the entire Snake game.
 ///
-/// It calculates the grid size from its layout constraints, creates the
-/// core game objects, runs the [GameLoop], and repaints on every frame.
+/// On window resize the existing game continues at its original grid size,
+/// centered within the new constraints. A fresh game is only started when
+/// no game is running (initial launch or after quit -> Play Again).
 class ConsoleGameWidget extends StatefulWidget {
   final ScoreRepository scoreRepo;
 
@@ -25,16 +30,33 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
 
   final _focusNode = FocusNode();
   final _inputProvider = FlutterInputProvider();
+  final _sound = SoundManager();
 
   FlutterRenderer? _renderer;
   GameLoop? _loop;
   bool _quit = false;
+  bool _starting = false;
 
   @override
   void dispose() {
     _loop?.stop();
+    _sound.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handleGameEvent(GameEvent event) {
+    switch (event) {
+      case GameEvent.foodEaten:
+        _sound.playEat();
+      case GameEvent.bonusEaten:
+      case GameEvent.shrinkPillEaten:
+      case GameEvent.combo:
+      case GameEvent.portalUsed:
+        _sound.playBonus();
+      case GameEvent.death:
+        _sound.playDeath();
+    }
   }
 
   void _startGame(int columns, int rows) {
@@ -50,6 +72,7 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
         scoreRepo: widget.scoreRepo,
         boardColumns: columns,
         boardRows: rows,
+        onEvent: _handleGameEvent,
       ),
       renderer: renderer,
       inputProvider: _inputProvider,
@@ -60,8 +83,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
     _renderer = renderer;
     _loop = loop;
     _quit = false;
+    _starting = false;
 
-    // The GameLoop.run() future completes when the game quits.
     loop.run().then((_) {
       if (mounted) setState(() => _quit = true);
     });
@@ -79,23 +102,27 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
           color: const Color(0xFF0A0A0A),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final columns = (constraints.maxWidth / _cellWidth).floor();
-              final rows = (constraints.maxHeight / _cellHeight).floor();
+              final maxColumns = (constraints.maxWidth / _cellWidth).floor();
+              final maxRows = (constraints.maxHeight / _cellHeight).floor();
 
-              if (columns < 20 || rows < 10) {
+              if (maxColumns < 20 || maxRows < 10) {
                 return const Center(
                   child: Text(
                     'Window too small',
-                    style: TextStyle(color: Colors.white54, fontFamily: 'monospace'),
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontFamily: 'JetBrainsMono',
+                    ),
                   ),
                 );
               }
 
-              // (Re)start if renderer doesn't exist or grid size changed.
+              // Start a game if none is running yet.
               final r = _renderer;
-              if (r == null || r.columns != columns || r.rows != rows) {
+              if (r == null && !_starting) {
+                _starting = true;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _startGame(columns, rows);
+                  _startGame(maxColumns, maxRows);
                 });
               }
 
@@ -108,18 +135,18 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                         'Thanks for playing!',
                         style: TextStyle(
                           color: Colors.white70,
-                          fontFamily: 'monospace',
+                          fontFamily: 'JetBrainsMono',
                           fontSize: 18,
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () => _startGame(columns, rows),
+                        onPressed: () => _startGame(maxColumns, maxRows),
                         child: const Text(
                           'Play Again',
                           style: TextStyle(
                             color: Colors.greenAccent,
-                            fontFamily: 'monospace',
+                            fontFamily: 'JetBrainsMono',
                             fontSize: 16,
                           ),
                         ),
@@ -133,17 +160,39 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                 return const SizedBox.shrink();
               }
 
-              return CustomPaint(
-                painter: ConsoleGridPainter(
-                  buffer: r.buffer,
-                  cellWidth: _cellWidth,
-                  cellHeight: _cellHeight,
-                ),
-                size: Size(
-                  columns * _cellWidth,
-                  rows * _cellHeight,
+              final canvasWidth = r.columns * _cellWidth;
+              final canvasHeight = r.rows * _cellHeight;
+
+              final gameCanvas = CrtOverlay(
+                child: CustomPaint(
+                  painter: ConsoleGridPainter(
+                    buffer: r.buffer,
+                    cellWidth: _cellWidth,
+                    cellHeight: _cellHeight,
+                  ),
+                  size: Size(canvasWidth, canvasHeight),
                 ),
               );
+
+              final isMobile = defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.android;
+
+              final content = isMobile
+                  ? Stack(
+                      children: [
+                        gameCanvas,
+                        Positioned(
+                          right: 24,
+                          bottom: 24,
+                          child: DpadWidget(
+                            onInput: _inputProvider.handleSwipe,
+                          ),
+                        ),
+                      ],
+                    )
+                  : gameCanvas;
+
+              return Center(child: content);
             },
           ),
         ),

@@ -1,6 +1,7 @@
 library;
 
 export 'src/entities/direction.dart';
+export 'src/game_event.dart';
 export 'src/entities/snake.dart';
 export 'src/entities/vector2.dart';
 export 'src/game_loop.dart';
@@ -15,3 +16,5 @@ export 'src/scenes/gameplay_scene.dart';
 export 'src/scenes/menu_scene.dart';
 export 'src/scenes/scene.dart';
 export 'src/scenes/scene_manager.dart';
+export 'src/systems/spawn_system.dart';
+export 'src/time_provider.dart';

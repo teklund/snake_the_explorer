@@ -10,6 +10,7 @@ final class MenuScene extends Scene {
   final ScoreRepository _scoreRepo;
   final int _boardColumns;
   final int _boardRows;
+  final GameEventCallback? _onEvent;
   int _selected = 0;
   bool _rendered = false;
 
@@ -17,9 +18,11 @@ final class MenuScene extends Scene {
     required ScoreRepository scoreRepo,
     required int boardColumns,
     required int boardRows,
+    GameEventCallback? onEvent,
   })  : _scoreRepo = scoreRepo,
         _boardColumns = boardColumns,
-        _boardRows = boardRows;
+        _boardRows = boardRows,
+        _onEvent = onEvent;
 
   static const _modes = [GameMode.classic, GameMode.zen, GameMode.timeAttack];
   static const _labels = ['Classic', 'Zen (wrap)', 'Time Attack'];
@@ -47,6 +50,7 @@ final class MenuScene extends Scene {
               scoreRepo: _scoreRepo,
               boardColumns: _boardColumns,
               boardRows: _boardRows,
+              onEvent: _onEvent,
             ));
       case InputAction.quit:
         return const Quit();
