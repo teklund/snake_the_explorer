@@ -4,12 +4,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 /// Paints CRT monitor effects on top of the game canvas:
-/// - Horizontal scanlines
-/// - Subtle phosphor glow (bloom)
+/// - Horizontal scanlines (tinted per theme)
 /// - Corner vignette darkening
 /// - Slight screen curvature illusion via radial gradient
 final class CrtOverlayPainter extends CustomPainter {
-  const CrtOverlayPainter();
+  /// Tint color drawn over scanline stripes.
+  final Color scanlineTint;
+
+  const CrtOverlayPainter({required this.scanlineTint});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -20,7 +22,7 @@ final class CrtOverlayPainter extends CustomPainter {
   /// Semi-transparent horizontal lines every 2 pixels to simulate CRT raster.
   void _paintScanlines(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0x18000000)
+      ..color = scanlineTint
       ..strokeWidth = 1.0;
 
     for (var y = 0.0; y < size.height; y += 3.0) {
@@ -31,7 +33,8 @@ final class CrtOverlayPainter extends CustomPainter {
   /// Radial vignette: darkens the corners and edges.
   void _paintVignette(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.sqrt(size.width * size.width + size.height * size.height) / 2;
+    final radius =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
 
     final paint = Paint()
       ..shader = ui.Gradient.radial(
@@ -49,25 +52,37 @@ final class CrtOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CrtOverlayPainter oldDelegate) => false;
+  bool shouldRepaint(CrtOverlayPainter oldDelegate) =>
+      scanlineTint != oldDelegate.scanlineTint;
 }
 
 /// A widget that layers CRT visual effects over its [child].
 ///
-/// Adds a subtle green phosphor bloom glow around the game area,
-/// scanlines, and a corner vignette for an authentic retro feel.
+/// Adds a phosphor bloom glow (colored by [glowColor]) around the game area,
+/// themed scanlines, and a corner vignette for an authentic retro feel.
 class CrtOverlay extends StatelessWidget {
   final Widget child;
 
-  const CrtOverlay({super.key, required this.child});
+  /// Phosphor glow color for the bloom box-shadow. Defaults to green.
+  final Color glowColor;
+
+  /// Scanline tint color. Defaults to a dark green.
+  final Color scanlineTint;
+
+  const CrtOverlay({
+    super.key,
+    required this.child,
+    this.glowColor = const Color(0x1833CC33),
+    this.scanlineTint = const Color(0x18001A00),
+  });
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1833CC33), // green phosphor glow
+            color: glowColor,
             blurRadius: 30,
             spreadRadius: 8,
           ),
@@ -86,7 +101,7 @@ class CrtOverlay extends StatelessWidget {
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: const CrtOverlayPainter(),
+                  painter: CrtOverlayPainter(scanlineTint: scanlineTint),
                 ),
               ),
             ),

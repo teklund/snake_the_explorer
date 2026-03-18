@@ -4,7 +4,16 @@ import 'package:snake_game_core/snake_game_core.dart';
 
 /// Persists per-mode high scores to ~/.snake_high_scores (key=value lines).
 final class FileScoreRepository implements ScoreRepository {
-  static final _file = File('${Platform.environment['HOME'] ?? '.'}/.snake_high_scores');
+  /// Creates a [FileScoreRepository] backed by [file].
+  ///
+  /// When omitted the default location is `~/.snake_high_scores`.
+  FileScoreRepository([File? file])
+      : _file = file ??
+            File(
+              '${Platform.environment['HOME'] ?? '.'}/.snake_high_scores',
+            );
+
+  final File _file;
 
   Map<String, int> _loadAll() {
     try {

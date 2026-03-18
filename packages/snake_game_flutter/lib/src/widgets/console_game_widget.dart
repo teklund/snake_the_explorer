@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snake_game_core/snake_game_core.dart';
 
+import '../crt_theme.dart';
 import '../flutter_input_provider.dart';
 import '../flutter_renderer.dart';
 import '../sound_manager.dart';
@@ -10,6 +13,9 @@ import 'crt_overlay.dart';
 import 'dpad_widget.dart';
 import 'particle_overlay.dart';
 import 'swipe_detector.dart';
+
+/// SharedPreferences key used to persist the selected CRT theme.
+const _themePrefsKey = 'crt_theme';
 
 /// A self-contained widget that hosts the entire Snake game.
 ///
@@ -41,6 +47,14 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   double _fadeOpacity = 0.0;
   int _gameGeneration = 0;
 
+  CrtTheme _theme = CrtTheme.greenPhosphor;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
   @override
   void dispose() {
     _loop?.stop();
@@ -48,6 +62,35 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
     _focusNode.dispose();
     super.dispose();
   }
+
+  // -------------------------------------------------------------------------
+  // Theme persistence
+  // -------------------------------------------------------------------------
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString(_themePrefsKey);
+    if (name != null && mounted) {
+      setState(() => _theme = CrtTheme.fromName(name));
+    }
+  }
+
+  Future<void> _saveTheme(CrtTheme theme) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themePrefsKey, theme.name);
+  }
+
+  void _cycleTheme() {
+    final next = _theme.next;
+    setState(() => _theme = next);
+    // Clear the text painter cache so colors are rebuilt for the new theme.
+    ConsoleGridPainter.clearCache();
+    _saveTheme(next);
+  }
+
+  // -------------------------------------------------------------------------
+  // Game events
+  // -------------------------------------------------------------------------
 
   void _handleGameEvent(GameEventData data) {
     switch (data.event) {
@@ -71,6 +114,10 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
       row: data.row + 1,
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Game lifecycle
+  // -------------------------------------------------------------------------
 
   void _startGame(int columns, int rows) {
     _loop?.stop();
@@ -110,16 +157,34 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Keyboard handling
+  // -------------------------------------------------------------------------
+
+  void _handleKeyEvent(KeyEvent event) {
+    // Intercept the T key for theme cycling before forwarding to the game.
+    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+        event.logicalKey == LogicalKeyboardKey.keyT) {
+      _cycleTheme();
+      return;
+    }
+    _inputProvider.handleKeyEvent(event);
+  }
+
+  // -------------------------------------------------------------------------
+  // Build
+  // -------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return KeyboardListener(
       focusNode: _focusNode,
       autofocus: true,
-      onKeyEvent: _inputProvider.handleKeyEvent,
+      onKeyEvent: _handleKeyEvent,
       child: SwipeDetector(
         onSwipe: _inputProvider.handleSwipe,
         child: Container(
-          color: const Color(0xFF0A0A0A),
+          color: _theme.backgroundColor,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final maxColumns = (constraints.maxWidth / _cellWidth).floor();
@@ -188,18 +253,22 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                 cellWidth: _cellWidth,
                 cellHeight: _cellHeight,
                 child: CrtOverlay(
+                  glowColor: _theme.glowColor,
+                  scanlineTint: _theme.scanlineTint,
                   child: CustomPaint(
                     painter: ConsoleGridPainter(
                       buffer: r.buffer,
                       cellWidth: _cellWidth,
                       cellHeight: _cellHeight,
+                      theme: _theme,
                     ),
                     size: Size(canvasWidth, canvasHeight),
                   ),
                 ),
               );
 
-              final isMobile = defaultTargetPlatform == TargetPlatform.iOS ||
+              final isMobile =
+                  defaultTargetPlatform == TargetPlatform.iOS ||
                   defaultTargetPlatform == TargetPlatform.android;
 
               Widget content = isMobile

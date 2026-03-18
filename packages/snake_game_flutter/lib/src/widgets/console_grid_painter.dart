@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:snake_game_core/snake_game_core.dart';
 
 import '../cell.dart';
+import '../crt_theme.dart';
 import '../game_color_map.dart';
 
 /// A color-run: a contiguous horizontal span of characters sharing the same
@@ -34,16 +35,21 @@ final class ConsoleGridPainter extends CustomPainter {
   final double cellWidth;
   final double cellHeight;
   final String fontFamily;
+  final CrtTheme theme;
 
   /// Shared cache: key → TextPainter. Cleared when it grows too large.
   static final Map<int, TextPainter> _cache = {};
   static const _maxCacheSize = 2048;
+
+  /// Explicitly clears the text painter cache, e.g. after a theme change.
+  static void clearCache() => _cache.clear();
 
   ConsoleGridPainter({
     required this.buffer,
     required this.cellWidth,
     required this.cellHeight,
     this.fontFamily = 'JetBrainsMono',
+    this.theme = CrtTheme.greenPhosphor,
   });
 
   @override
@@ -120,7 +126,7 @@ final class ConsoleGridPainter extends CustomPainter {
   }
 
   TextPainter _getOrCreate(String text, AnsiColor color, double fontSize) {
-    final key = Object.hash(text, color, fontSize);
+    final key = Object.hash(text, color, fontSize, theme);
     final cached = _cache[key];
     if (cached != null) return cached;
 
@@ -130,7 +136,7 @@ final class ConsoleGridPainter extends CustomPainter {
         style: TextStyle(
           fontFamily: fontFamily,
           fontSize: fontSize,
-          color: mapAnsiColor(color),
+          color: mapAnsiColor(color, theme),
           height: 1.0,
         ),
       ),

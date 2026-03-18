@@ -5,6 +5,17 @@ import 'dart:io';
 import 'package:snake_game_core/snake_game_core.dart';
 
 final class StdinInputProvider implements InputProvider {
+  /// Creates a provider that reads from [stdin] when [init] is called.
+  StdinInputProvider();
+
+  /// Creates a provider pre-wired to [stream] for unit testing.
+  ///
+  /// The subscription is started immediately — callers should **not** call
+  /// [init] on instances created with this constructor.
+  StdinInputProvider.forTesting(Stream<List<int>> stream) {
+    _subscription = stream.listen(_onBytes);
+  }
+
   final Queue<InputAction> _queue = Queue();
   StreamSubscription<List<int>>? _subscription;
 
