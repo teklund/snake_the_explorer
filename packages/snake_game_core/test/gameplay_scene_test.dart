@@ -96,7 +96,7 @@ void main() {
   group('Food pickup', () {
     test('eating food fires foodEaten event', () {
       final events = <GameEvent>[];
-      final scene = _scene(onEvent: events.add);
+      final scene = _scene(onEvent: (d) => events.add(d.event));
       // Snake starts at (5,5) heading right, food at (10,5).
       // Move 4 ticks to reach (9,5), then one more to reach food at (10,5).
       // But spawnable ticks run each update — we just need 5 ticks.
@@ -123,7 +123,7 @@ void main() {
   group('Wall collision (classic mode)', () {
     test('hitting right wall triggers death flash', () {
       final events = <GameEvent>[];
-      final scene = _scene(onEvent: events.add);
+      final scene = _scene(onEvent: (d) => events.add(d.event));
       // Board width is 40, snake starts at x=5 heading right.
       // After eating food at x=10, snake grows and keeps moving.
       // We need to drive it to x=40 (out of bounds).
@@ -153,7 +153,7 @@ void main() {
   group('Zen mode (wrap)', () {
     test('snake wraps through walls instead of dying', () {
       final events = <GameEvent>[];
-      final scene = _scene(mode: GameMode.zen, onEvent: events.add);
+      final scene = _scene(mode: GameMode.zen, onEvent: (d) => events.add(d.event));
       scene.update(InputAction.moveUp);
       // Drive up past y=0. In zen mode, should wrap to bottom.
       _tickN(scene, 10);
@@ -222,14 +222,14 @@ void main() {
   group('Game events', () {
     test('no events fired on normal movement', () {
       final events = <GameEvent>[];
-      final scene = _scene(onEvent: events.add);
+      final scene = _scene(onEvent: (d) => events.add(d.event));
       scene.update(null); // just move
       expect(events, isEmpty);
     });
 
     test('death event fired on wall collision', () {
       final events = <GameEvent>[];
-      final scene = _scene(onEvent: events.add);
+      final scene = _scene(onEvent: (d) => events.add(d.event));
       scene.update(InputAction.moveUp);
       _tickN(scene, 6); // hit top wall
       expect(events, contains(GameEvent.death));
@@ -237,7 +237,7 @@ void main() {
 
     test('self-collision fires death event', () {
       final events = <GameEvent>[];
-      final scene = _scene(onEvent: events.add);
+      final scene = _scene(onEvent: (d) => events.add(d.event));
       // Snake starts at (5,5)(4,5)(3,5) heading right, food at (10,5).
       // Eat food at (10,5) on tick 5 → snake grows to length 4.
       _tickN(scene, 5);
@@ -266,7 +266,7 @@ void main() {
       final events = <GameEvent>[];
       // Use seeded random for deterministic food placement.
       final scene = _scene(
-        onEvent: events.add,
+        onEvent: (d) => events.add(d.event),
         random: Random(123),
       );
       // Eat food at (10,5)

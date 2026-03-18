@@ -8,6 +8,7 @@ import '../sound_manager.dart';
 import 'console_grid_painter.dart';
 import 'crt_overlay.dart';
 import 'dpad_widget.dart';
+import 'particle_overlay.dart';
 import 'swipe_detector.dart';
 
 /// A self-contained widget that hosts the entire Snake game.
@@ -31,11 +32,14 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
   final _focusNode = FocusNode();
   final _inputProvider = FlutterInputProvider();
   final _sound = SoundManager();
+  final _particleKey = GlobalKey<ParticleOverlayState>();
 
   FlutterRenderer? _renderer;
   GameLoop? _loop;
   bool _quit = false;
   bool _starting = false;
+  double _fadeOpacity = 0.0;
+  int _gameGeneration = 0;
 
   @override
   void dispose() {
@@ -45,8 +49,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
     super.dispose();
   }
 
-  void _handleGameEvent(GameEvent event) {
-    switch (event) {
+  void _handleGameEvent(GameEventData data) {
+    switch (data.event) {
       case GameEvent.foodEaten:
         _sound.playEat();
       case GameEvent.bonusEaten:
@@ -57,6 +61,13 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
       case GameEvent.death:
         _sound.playDeath();
     }
+    // The grid position from core uses a +1 offset for the border,
+    // so pass the raw col/row — the particle overlay maps to pixels.
+    _particleKey.currentState?.spawnEvent(
+      data.event,
+      col: data.col + 1, // +1 for border offset
+      row: data.row + 1,
+    );
   }
 
   void _startGame(int columns, int rows) {
@@ -84,6 +95,13 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
     _loop = loop;
     _quit = false;
     _starting = false;
+    _fadeOpacity = 0.0;
+    _gameGeneration++;
+
+    // Trigger fade-in on next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _fadeOpacity = 1.0);
+    });
 
     loop.run().then((_) {
       if (mounted) setState(() => _quit = true);
@@ -163,21 +181,26 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
               final canvasWidth = r.columns * _cellWidth;
               final canvasHeight = r.rows * _cellHeight;
 
-              final gameCanvas = CrtOverlay(
-                child: CustomPaint(
-                  painter: ConsoleGridPainter(
-                    buffer: r.buffer,
-                    cellWidth: _cellWidth,
-                    cellHeight: _cellHeight,
+              final gameCanvas = ParticleOverlay(
+                key: _particleKey,
+                cellWidth: _cellWidth,
+                cellHeight: _cellHeight,
+                child: CrtOverlay(
+                  child: CustomPaint(
+                    painter: ConsoleGridPainter(
+                      buffer: r.buffer,
+                      cellWidth: _cellWidth,
+                      cellHeight: _cellHeight,
+                    ),
+                    size: Size(canvasWidth, canvasHeight),
                   ),
-                  size: Size(canvasWidth, canvasHeight),
                 ),
               );
 
               final isMobile = defaultTargetPlatform == TargetPlatform.iOS ||
                   defaultTargetPlatform == TargetPlatform.android;
 
-              final content = isMobile
+              Widget content = isMobile
                   ? Stack(
                       children: [
                         gameCanvas,
@@ -191,6 +214,14 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget> {
                       ],
                     )
                   : gameCanvas;
+
+              content = AnimatedOpacity(
+                key: ValueKey(_gameGeneration),
+                opacity: _fadeOpacity,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeIn,
+                child: content,
+              );
 
               return Center(child: content);
             },

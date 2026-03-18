@@ -15,7 +15,10 @@ import 'game_over_scene.dart';
 import 'scene.dart';
 
 /// Optional callback for game events (sound, haptics, analytics, etc.).
-typedef GameEventCallback = void Function(GameEvent event);
+///
+/// Receives a [GameEventData] record containing the event type and the
+/// grid column/row where the event occurred.
+typedef GameEventCallback = void Function(GameEventData data);
 
 // Bonus food appears every this many ticks and lasts this many ticks.
 const _bonusSpawnInterval = 20;
@@ -122,6 +125,10 @@ final class GameplayScene extends Scene {
   }
 
   int get _level => (_score ~/ 5).clamp(0, 10);
+
+  void _fireEvent(GameEvent event) {
+    _onEvent?.call((event: event, col: _snake.head.x, row: _snake.head.y));
+  }
 
   @override
   SceneTransition update(InputAction? input) {
@@ -250,11 +257,11 @@ final class GameplayScene extends Scene {
       if (h == _spawns.portalA) {
         _snake = Snake(body: [_spawns.portalB!, ..._snake.body.skip(1)], direction: _snake.direction);
         _needsFullRedraw = true;
-        _onEvent?.call(GameEvent.portalUsed);
+        _fireEvent(GameEvent.portalUsed);
       } else if (h == _spawns.portalB) {
         _snake = Snake(body: [_spawns.portalA!, ..._snake.body.skip(1)], direction: _snake.direction);
         _needsFullRedraw = true;
-        _onEvent?.call(GameEvent.portalUsed);
+        _fireEvent(GameEvent.portalUsed);
       }
     }
 
@@ -266,7 +273,7 @@ final class GameplayScene extends Scene {
     if (outOfBounds || _snake.isSelfColliding || _spawns.obstacles.contains(_snake.head)) {
       _deathFlashTicks = _deathFlashDuration;
       _needsFullRedraw = true;
-      _onEvent?.call(GameEvent.death);
+      _fireEvent(GameEvent.death);
       return const Stay();
     }
 
@@ -289,12 +296,12 @@ final class GameplayScene extends Scene {
       _score += 3;
       _spawns.consumeBonusFood();
       _snake = _snake.grow();
-      _onEvent?.call(GameEvent.bonusEaten);
+      _fireEvent(GameEvent.bonusEaten);
     } else if (atShrink) {
       _spawns.consumeShrinkPill();
       _snake = _snake.shrink(_shrinkAmount);
       _needsFullRedraw = true;
-      _onEvent?.call(GameEvent.shrinkPillEaten);
+      _fireEvent(GameEvent.shrinkPillEaten);
     } else {
       if (_ticksSinceLastFood <= _comboWindowTicks && _comboCount > 0) {
         _comboCount++;
@@ -305,7 +312,7 @@ final class GameplayScene extends Scene {
       _score += _comboCount;
       if (_comboCount >= 2) {
         _comboTextTicks = _comboTextDuration;
-        _onEvent?.call(GameEvent.combo);
+        _fireEvent(GameEvent.combo);
       }
       _food = _spawns.spawnFood(
         boardWidth: _boardWidth, boardHeight: _boardHeight,
@@ -313,7 +320,7 @@ final class GameplayScene extends Scene {
       );
       _snake = _snake.grow();
       _prevTail = null;
-      _onEvent?.call(GameEvent.foodEaten);
+      _fireEvent(GameEvent.foodEaten);
     }
   }
 
