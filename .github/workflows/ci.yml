@@ -182,12 +182,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: "3.11.0"
+          channel: stable
 
       - name: Install dependencies
-        run: cd packages/snake_game_core && dart pub get && cd ../snake_game_cli && dart pub get
+        run: dart pub get
 
       - name: Compile CLI executable
         run: dart compile exe packages/snake_game_cli/bin/main.dart -o ${{ matrix.artifact }}
