@@ -23,6 +23,7 @@ cd packages/snake_game_flutter && flutter run
 # Run tests
 dart test packages/snake_game_core
 dart test packages/snake_game_cli
+flutter test packages/snake_game_flutter/test/  # use flutter test, NOT dart test
 
 # Analyze
 dart analyze
