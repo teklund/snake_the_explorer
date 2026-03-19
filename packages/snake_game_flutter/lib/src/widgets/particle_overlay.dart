@@ -6,6 +6,23 @@ import 'package:snake_game_core/snake_game_core.dart';
 
 import '../game_color_map.dart';
 
+/// A floating score label that drifts upward and fades out.
+final class _ScoreLabel {
+  double x;
+  double y;
+  double life; // 1.0 → 0.0
+  final double decay = 0.9; // life lost per second
+  final String text;
+  final Color color;
+
+  _ScoreLabel({
+    required this.x,
+    required this.y,
+    required this.text,
+    required this.color,
+  }) : life = 1.0;
+}
+
 /// A single animated particle with position, velocity, and lifetime.
 final class _Particle {
   double x;
@@ -52,6 +69,7 @@ class ParticleOverlay extends StatefulWidget {
 class ParticleOverlayState extends State<ParticleOverlay>
     with SingleTickerProviderStateMixin {
   final _particles = <_Particle>[];
+  final _labels = <_ScoreLabel>[];
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
   final _rng = math.Random();
@@ -86,8 +104,13 @@ class ParticleOverlayState extends State<ParticleOverlay>
       p.vy += 80.0 * dt; // gravity
       p.life -= p.decay * dt;
     }
-
     _particles.removeWhere((p) => p.life <= 0);
+
+    for (final l in _labels) {
+      l.y -= 30.0 * dt; // drift upward
+      l.life -= l.decay * dt;
+    }
+    _labels.removeWhere((l) => l.life <= 0);
 
     // Decay screen shake
     if (_shakeIntensity > 0) {
@@ -102,7 +125,7 @@ class ParticleOverlayState extends State<ParticleOverlay>
       }
     }
 
-    if (_particles.isEmpty && _shakeIntensity <= 0) {
+    if (_particles.isEmpty && _labels.isEmpty && _shakeIntensity <= 0) {
       _ticker.stop();
       _lastTick = Duration.zero;
     }
@@ -110,8 +133,9 @@ class ParticleOverlayState extends State<ParticleOverlay>
     setState(() {});
   }
 
-  /// Spawn particles for the given [event] at grid position ([col], [row]).
-  void spawnEvent(GameEvent event, {int col = 0, int row = 0}) {
+  /// Spawn particles and score labels for [event] at grid position ([col], [row]).
+  /// [value] carries event-specific numeric data (score delta, combo count).
+  void spawnEvent(GameEvent event, {int col = 0, int row = 0, int value = 0}) {
     final cx = (col + 0.5) * widget.cellWidth;
     final cy = (row + 0.5) * widget.cellHeight;
 
@@ -121,23 +145,27 @@ class ParticleOverlayState extends State<ParticleOverlay>
           mapAnsiColor(AnsiColor.green),
           mapAnsiColor(AnsiColor.brightGreen),
         ]);
+        _spawnLabel(cx, cy, text: '+$value', color: mapAnsiColor(AnsiColor.brightGreen));
       case GameEvent.bonusEaten:
         _spawnBurst(cx, cy, count: 14, speed: 90, colors: [
           mapAnsiColor(AnsiColor.yellow),
           mapAnsiColor(AnsiColor.cyan),
           Colors.white,
         ]);
+        _spawnLabel(cx, cy, text: '+$value', color: mapAnsiColor(AnsiColor.yellow));
       case GameEvent.shrinkPillEaten:
         _spawnBurst(cx, cy, count: 10, speed: 70, colors: [
           mapAnsiColor(AnsiColor.magenta),
           Colors.white70,
         ]);
+        _spawnLabel(cx, cy, text: 'SHRINK', color: mapAnsiColor(AnsiColor.magenta));
       case GameEvent.combo:
         _spawnBurst(cx, cy, count: 18, speed: 100, colors: [
           mapAnsiColor(AnsiColor.yellow),
           mapAnsiColor(AnsiColor.red),
           Colors.white,
         ]);
+        _spawnLabel(cx, cy, text: 'COMBO x$value', color: mapAnsiColor(AnsiColor.yellow));
       case GameEvent.portalUsed:
         _spawnRing(cx, cy, count: 12, colors: [
           mapAnsiColor(AnsiColor.cyan),
@@ -152,11 +180,21 @@ class ParticleOverlayState extends State<ParticleOverlay>
           Colors.white,
           const Color(0xFFFFCC00),
         ]);
+        _spawnLabel(cx, cy, text: 'NEW BEST!', color: const Color(0xFFFFCC00));
     }
 
     if (!_ticker.isActive) {
       _ticker.start();
     }
+  }
+
+  void _spawnLabel(double cx, double cy, {required String text, required Color color}) {
+    _labels.add(_ScoreLabel(
+      x: cx + (_rng.nextDouble() - 0.5) * widget.cellWidth,
+      y: cy,
+      text: text,
+      color: color,
+    ));
   }
 
   void _spawnBurst(
@@ -236,6 +274,14 @@ class ParticleOverlayState extends State<ParticleOverlay>
               ),
             ),
           ),
+        if (_labels.isNotEmpty)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _ScoreLabelPainter(_labels),
+              ),
+            ),
+          ),
       ],
     );
 
@@ -266,4 +312,34 @@ final class _ParticlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ParticlePainter oldDelegate) => true;
+}
+
+final class _ScoreLabelPainter extends CustomPainter {
+  final List<_ScoreLabel> labels;
+
+  const _ScoreLabelPainter(this.labels);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final l in labels) {
+      final alpha = l.life.clamp(0.0, 1.0);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: l.text,
+          style: TextStyle(
+            color: l.color.withValues(alpha: alpha),
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'JetBrainsMono',
+            decoration: TextDecoration.none,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(l.x - tp.width / 2, l.y - tp.height / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScoreLabelPainter old) => true;
 }
