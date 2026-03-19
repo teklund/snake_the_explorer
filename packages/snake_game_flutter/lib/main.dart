@@ -11,8 +11,11 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final scoreRepo = PrefsScoreRepository(prefs);
 
-  // Lock to landscape on mobile for better grid space.
+  // Allow all orientations — the game auto-pauses on rotation so the player
+  // never loses progress. Portrait shows a "rotate for best experience" hint.
   await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);

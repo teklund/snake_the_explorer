@@ -36,7 +36,7 @@ class ConsoleGameWidget extends StatefulWidget {
 }
 
 class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _cellWidth = 10.0;
   static const _cellHeight = 18.0;
 
@@ -52,6 +52,9 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   double _fadeOpacity = 0.0;
   int _gameGeneration = 0;
 
+  /// Tracks the orientation at the last build so rotation can be detected.
+  Orientation? _lastOrientation;
+
   CrtTheme _theme = CrtTheme.greenPhosphor;
 
   /// Whether the mute indicator toast is currently visible.
@@ -64,6 +67,7 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cursorBlinkController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 530),
@@ -81,11 +85,41 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cursorBlinkController.dispose();
     _loop?.stop();
     _sound.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  // -------------------------------------------------------------------------
+  // Orientation change handling
+  // -------------------------------------------------------------------------
+
+  /// Called by [WidgetsBindingObserver] when window metrics change (e.g. on
+  /// device rotation). Automatically pauses an active game so the snake
+  /// doesn't crash while the screen re-lays out.
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // Derive orientation from the platform window's physical size, which is
+    // available synchronously without a BuildContext.
+    final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+    if (view == null) return;
+    final size = view.physicalSize;
+    final newOrientation =
+        size.width >= size.height ? Orientation.landscape : Orientation.portrait;
+
+    if (_lastOrientation != null &&
+        _lastOrientation != newOrientation &&
+        _renderer != null &&
+        !_quit) {
+      // Orientation changed mid-game — pause so the player doesn't lose
+      // control while the grid re-centers in the new layout.
+      _inputProvider.handleSwipe(InputAction.pause);
+    }
+    _lastOrientation = newOrientation;
   }
 
   // -------------------------------------------------------------------------
@@ -283,10 +317,23 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
               final maxColumns = (constraints.maxWidth / _cellWidth).floor();
               final maxRows = (constraints.maxHeight / _cellHeight).floor();
 
+              // Seed _lastOrientation on the first build so that the initial
+              // orientation is known before the first rotation event fires.
+              final currentOrientation = constraints.maxWidth >= constraints.maxHeight
+                  ? Orientation.landscape
+                  : Orientation.portrait;
+              _lastOrientation ??= currentOrientation;
+
               if (maxColumns < 20 || maxRows < 10) {
+                // In portrait on a narrow phone the grid simply won't fit.
+                // Show a friendly prompt rather than a generic error.
+                final isPortrait = currentOrientation == Orientation.portrait;
+                final message = isPortrait
+                    ? 'Rotate your device\nfor the best experience'
+                    : 'Terminal too small\nResize window...';
                 return Center(
                   child: Text(
-                    'Terminal too small\nResize window...',
+                    message,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _theme.mapColor(AnsiColor.darkGray),
@@ -405,20 +452,21 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                   defaultTargetPlatform == TargetPlatform.android ||
                   _isMobileWeb(context);
 
-              // Honour safe-area insets so the D-pad is never obscured by
-              // notches, rounded corners, or system gesture bars.
-              final safePadding = MediaQuery.paddingOf(context);
+              // In landscape the D-pad sits in the bottom-right corner.
+              // In portrait it is centred at the bottom for easier one-handed
+              // reach and to avoid overlapping the narrower game canvas.
+              final isLandscape = currentOrientation == Orientation.landscape;
+              final dpad = DpadWidget(onInput: _inputProvider.handleSwipe);
 
               Widget content = isMobile
                   ? Stack(
                       children: [
                         gameCanvas,
                         Positioned(
-                          right: 24,
+                          left: isLandscape ? null : 0,
+                          right: isLandscape ? 24 : 0,
                           bottom: 24,
-                          child: DpadWidget(
-                            onInput: _inputProvider.handleSwipe,
-                          ),
+                          child: isLandscape ? dpad : Center(child: dpad),
                         ),
                       ],
                     )
