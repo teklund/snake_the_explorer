@@ -378,6 +378,40 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                 );
               }
 
+              // Portrait phones/web: menu needs ~55 columns; prompt to rotate
+              // rather than rendering clipped UI.
+              if (constraints.maxHeight > constraints.maxWidth &&
+                  maxColumns < 55) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Rotate device\nfor best experience',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _theme.mapColor(AnsiColor.green),
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 20,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // On mobile and web, scale cells to fill the screen exactly so
+              // game walls reach the screen edges. On desktop the floating
+              // terminal-window look is intentional and cells stay nominal.
+              final fillScreen = kIsWeb ||
+                  defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.android;
+              final effectiveCellWidth = fillScreen
+                  ? constraints.maxWidth / maxColumns
+                  : _cellWidth;
+              final effectiveCellHeight = fillScreen
+                  ? constraints.maxHeight / maxRows
+                  : _cellHeight;
+
               // Start a game if none is running yet.
               final r = _renderer;
               if (r == null && !_starting) {
@@ -448,24 +482,26 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                 return const SizedBox.shrink();
               }
 
-              final canvasWidth = r.columns * _cellWidth;
-              final canvasHeight = r.rows * _cellHeight;
+              final canvasWidth =
+                  fillScreen ? constraints.maxWidth : r.columns * _cellWidth;
+              final canvasHeight =
+                  fillScreen ? constraints.maxHeight : r.rows * _cellHeight;
 
               final gameCanvas = Semantics(
                 label: 'Snake game canvas',
                 excludeSemantics: true,
                 child: ParticleOverlay(
                   key: _particleKey,
-                  cellWidth: _cellWidth,
-                  cellHeight: _cellHeight,
+                  cellWidth: effectiveCellWidth,
+                  cellHeight: effectiveCellHeight,
                   child: CrtOverlay(
                     glowColor: _theme.glowColor,
                     scanlineTint: _theme.scanlineTint,
                     child: CustomPaint(
                       painter: ConsoleGridPainter(
                         buffer: r.buffer,
-                        cellWidth: _cellWidth,
-                        cellHeight: _cellHeight,
+                        cellWidth: effectiveCellWidth,
+                        cellHeight: effectiveCellHeight,
                         theme: _theme,
                         cursorVisible: r.cursorVisible,
                         cursorRow: r.cursorRow,
