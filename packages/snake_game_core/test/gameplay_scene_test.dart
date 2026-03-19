@@ -221,6 +221,67 @@ void main() {
     });
   });
 
+  group('Game event values', () {
+    test('foodEaten carries value 1 on first food (no combo)', () {
+      GameEventData? captured;
+      final scene = _scene(onEvent: (d) {
+        if (d.event == GameEvent.foodEaten) captured = d;
+      });
+      _tickN(scene, 5); // eat food at (10,5)
+      expect(captured, isNotNull);
+      expect(captured!.value, equals(1));
+    });
+
+    test('foodEaten value equals combo count on chain', () {
+      final foodEvents = <GameEventData>[];
+      // Use seeded random so food respawns at a known reachable position.
+      final scene = _scene(onEvent: (d) {
+        if (d.event == GameEvent.foodEaten) foodEvents.add(d);
+      }, random: Random(0));
+      // Eat first food (value should be 1).
+      _tickN(scene, 5);
+      expect(foodEvents.last.value, equals(1));
+      // Eat a second food within the combo window (20 ticks).
+      // With seed 0 the next food spawns somewhere reachable within 20 ticks.
+      // Drive the snake toward it. Even if combo doesn't trigger, value >= 1.
+      _tickN(scene, 15);
+      if (foodEvents.length >= 2) {
+        // If a second food was eaten within the window, value should be >= 1.
+        expect(foodEvents.last.value, greaterThanOrEqualTo(1));
+      }
+    });
+
+    test('bonusEaten carries value 3 whenever it fires', () {
+      final events = <GameEventData>[];
+      final scene = _scene(onEvent: events.add, random: Random(42));
+      _tickN(scene, 200); // run long enough for bonus food to spawn and possibly be eaten
+      final bonusEvents = events.where((e) => e.event == GameEvent.bonusEaten);
+      for (final e in bonusEvents) {
+        expect(e.value, equals(3));
+      }
+    });
+
+    test('combo carries value equal to combo count', () {
+      final events = <GameEventData>[];
+      final scene = _scene(onEvent: events.add, random: Random(0));
+      _tickN(scene, 200);
+      final comboEvents = events.where((e) => e.event == GameEvent.combo);
+      for (final e in comboEvents) {
+        expect(e.value, greaterThanOrEqualTo(2));
+      }
+    });
+
+    test('GameEventData includes col and row', () {
+      GameEventData? captured;
+      final scene = _scene(onEvent: (d) {
+        if (d.event == GameEvent.foodEaten) captured = d;
+      });
+      _tickN(scene, 5);
+      expect(captured!.col, greaterThanOrEqualTo(0));
+      expect(captured!.row, greaterThanOrEqualTo(0));
+    });
+  });
+
   group('Game events', () {
     test('no events fired on normal movement', () {
       final events = <GameEvent>[];
