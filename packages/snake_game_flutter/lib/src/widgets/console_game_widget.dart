@@ -267,15 +267,18 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
-      child: SwipeDetector(
-        onSwipe: _inputProvider.handleSwipe,
-        child: Container(
-          color: _theme.backgroundColor,
-          child: LayoutBuilder(
+    return SafeArea(
+      // SafeArea pads the game content so it stays within the visible area,
+      // clear of notches, rounded corners, and system gesture bars.
+      child: KeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: SwipeDetector(
+          onSwipe: _inputProvider.handleSwipe,
+          child: Container(
+            color: _theme.backgroundColor,
+            child: LayoutBuilder(
             builder: (context, constraints) {
               final maxColumns = (constraints.maxWidth / _cellWidth).floor();
               final maxRows = (constraints.maxHeight / _cellHeight).floor();
@@ -402,6 +405,10 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                   defaultTargetPlatform == TargetPlatform.android ||
                   _isMobileWeb(context);
 
+              // Honour safe-area insets so the D-pad is never obscured by
+              // notches, rounded corners, or system gesture bars.
+              final safePadding = MediaQuery.paddingOf(context);
+
               Widget content = isMobile
                   ? Stack(
                       children: [
@@ -469,6 +476,7 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

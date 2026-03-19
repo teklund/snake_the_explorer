@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +19,12 @@ Future<void> main() async {
 
   // Dark system chrome for the retro vibe.
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+
+  // Hide status bar and navigation bar on mobile for maximum screen real estate.
+  if (defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
 
   runApp(SnakeApp(scoreRepo: scoreRepo));
 }
