@@ -91,26 +91,34 @@ final class MenuScene extends Scene {
     if (_rendered) return;
     renderer.clearScreen();
 
-    const col = 8;
+    // Content block is 51 chars wide (help line); center it.
+    // On small screens (< 26 rows) use tighter item spacing so everything fits.
+    final col = ((_boardColumns - 51) ~/ 2).clamp(2, _boardColumns ~/ 2);
+    final spacing = _boardRows >= 26 ? 3 : 2;
+    // Logo starts 1 row from top on tight screens, 4 rows otherwise.
+    final logoRow = _boardRows >= 26 ? 4 : 1;
+
     renderer.setColor(AnsiColor.brightGreen);
-    renderer.moveCursor(4, col + 3);
+    renderer.moveCursor(logoRow, col + 3);
     renderer.write(' ___  _  _   __   _  _  ____ ');
-    renderer.moveCursor(5, col + 3);
+    renderer.moveCursor(logoRow + 1, col + 3);
     renderer.write('/ __)( \\( ) / _\\ ( )/ )( ___)');
-    renderer.moveCursor(6, col + 3);
+    renderer.moveCursor(logoRow + 2, col + 3);
     renderer.write('\\__ \\ )  ( /    \\ )  <  )__)  ');
-    renderer.moveCursor(7, col + 3);
+    renderer.moveCursor(logoRow + 3, col + 3);
     renderer.write('(___/(_)\\_)\\_/\\_/(_)\\_)(____)');
     renderer.setColor(AnsiColor.reset);
 
-    renderer.moveCursor(9, col);
+    final dividerRow = logoRow + 5;
+    renderer.moveCursor(dividerRow, col);
     renderer.setColor(AnsiColor.darkGray);
     renderer.write('─' * 32);
     renderer.setColor(AnsiColor.reset);
 
+    final itemsStartRow = dividerRow + 2;
     for (var i = 0; i < _modes.length; i++) {
       final isActive = i == _selected;
-      renderer.moveCursor(11 + i * 3, col);
+      renderer.moveCursor(itemsStartRow + i * spacing, col);
       if (isActive) {
         renderer.setColor(AnsiColor.yellow);
         renderer.write('▶ ${_labels[i].padRight(13)} ${_descs[i]}');
@@ -122,7 +130,7 @@ final class MenuScene extends Scene {
     }
 
     // High Scores option
-    final hsRow = 11 + _modes.length * 3;
+    final hsRow = itemsStartRow + _modes.length * spacing;
     final hsActive = _selected == _modes.length;
     renderer.moveCursor(hsRow, col);
     if (hsActive) {

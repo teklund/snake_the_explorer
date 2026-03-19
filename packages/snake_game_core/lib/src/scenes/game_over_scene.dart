@@ -65,54 +65,58 @@ final class GameOverScene extends Scene {
     if (_rendered) return;
     renderer.clearScreen();
 
-    const col = 10;
+    // Box is 23 chars wide; center it horizontally and vertically.
+    // Content height: 17 rows (16 without portal line).
+    final contentHeight = stats.portalsUsed > 0 ? 17 : 16;
+    final r0 = ((_boardRows - contentHeight) ~/ 2).clamp(1, _boardRows - contentHeight);
+    final col = (_boardColumns - 23) ~/ 2;
     final isNewBest = score > 0 && score >= highScore;
 
     renderer.setColor(AnsiColor.red);
-    renderer.moveCursor(5, col);
+    renderer.moveCursor(r0, col);
     renderer.write('+---------------------+');
-    renderer.moveCursor(6, col);
+    renderer.moveCursor(r0 + 1, col);
     renderer.write('|      GAME  OVER     |');
-    renderer.moveCursor(7, col);
+    renderer.moveCursor(r0 + 2, col);
     renderer.write('+---------------------+');
 
     renderer.setColor(isNewBest ? AnsiColor.yellow : AnsiColor.cyan);
-    renderer.moveCursor(8, col);
+    renderer.moveCursor(r0 + 3, col);
     renderer.write('| Score: ${score.toString().padLeft(12)} |');
-    renderer.moveCursor(9, col);
+    renderer.moveCursor(r0 + 4, col);
     renderer.write('| Best:  ${highScore.toString().padLeft(12)} |');
-    renderer.moveCursor(10, col);
+    renderer.moveCursor(r0 + 5, col);
     renderer.write(isNewBest ? '|  *** NEW BEST! ***  |' : '|                     |');
 
     // Stats section
     renderer.setColor(AnsiColor.darkGray);
-    renderer.moveCursor(11, col);
+    renderer.moveCursor(r0 + 6, col);
     renderer.write('+---------------------+');
     renderer.setColor(AnsiColor.green);
-    renderer.moveCursor(12, col);
+    renderer.moveCursor(r0 + 7, col);
     renderer.write('| Foods:  ${stats.foodsEaten.toString().padLeft(11)} |');
-    renderer.moveCursor(13, col);
+    renderer.moveCursor(r0 + 8, col);
     renderer.write('| Bonus:  ${stats.bonusesEaten.toString().padLeft(11)} |');
-    renderer.moveCursor(14, col);
+    renderer.moveCursor(r0 + 9, col);
     renderer.write('| Max combo: ${stats.maxCombo.toString().padLeft(8)} |');
-    renderer.moveCursor(15, col);
+    renderer.moveCursor(r0 + 10, col);
     renderer.write('| Max length: ${stats.maxLength.toString().padLeft(7)} |');
     if (stats.portalsUsed > 0) {
-      renderer.moveCursor(16, col);
+      renderer.moveCursor(r0 + 11, col);
       renderer.write('| Portals: ${stats.portalsUsed.toString().padLeft(10)} |');
     }
 
-    final actionsRow = stats.portalsUsed > 0 ? 17 : 16;
+    final statsRows = stats.portalsUsed > 0 ? 12 : 11;
     renderer.setColor(AnsiColor.red);
-    renderer.moveCursor(actionsRow, col);
+    renderer.moveCursor(r0 + statsRows, col);
     renderer.write('+---------------------+');
     renderer.setColor(AnsiColor.darkGray);
-    renderer.moveCursor(actionsRow + 1, col);
+    renderer.moveCursor(r0 + statsRows + 1, col);
     renderer.write('| [Enter] New Game    |');
-    renderer.moveCursor(actionsRow + 2, col);
+    renderer.moveCursor(r0 + statsRows + 2, col);
     renderer.write('|   [Q]   Quit        |');
     renderer.setColor(AnsiColor.red);
-    renderer.moveCursor(actionsRow + 3, col);
+    renderer.moveCursor(r0 + statsRows + 3, col);
     renderer.write('+---------------------+');
     renderer.setColor(AnsiColor.reset);
 
