@@ -6,7 +6,7 @@
     "background_color": "#0a0a14",
     "theme_color": "#33cc33",
     "description": "A retro console-style snake game with CRT effects",
-    "orientation": "landscape",
+    "orientation": "any",
     "categories": ["games", "entertainment"],
     "scope": ".",
     "prefer_related_applications": false,
