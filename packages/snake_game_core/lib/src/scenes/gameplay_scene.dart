@@ -143,8 +143,8 @@ final class GameplayScene extends Scene {
 
   int get _level => (_score ~/ 5).clamp(0, 10);
 
-  void _fireEvent(GameEvent event) {
-    _onEvent?.call((event: event, col: _snake.head.x, row: _snake.head.y));
+  void _fireEvent(GameEvent event, {int value = 0}) {
+    _onEvent?.call((event: event, col: _snake.head.x, row: _snake.head.y, value: value));
   }
 
   @override
@@ -325,7 +325,7 @@ final class GameplayScene extends Scene {
       _bonusesEaten++;
       _spawns.consumeBonusFood();
       _snake = _snake.grow();
-      _fireEvent(GameEvent.bonusEaten);
+      _fireEvent(GameEvent.bonusEaten, value: 3);
     } else if (atShrink) {
       _spawns.consumeShrinkPill();
       _snake = _snake.shrink(_shrinkAmount);
@@ -343,7 +343,7 @@ final class GameplayScene extends Scene {
       _score += _comboCount;
       if (_comboCount >= 2) {
         _comboTextTicks = _comboTextDuration;
-        _fireEvent(GameEvent.combo);
+        _fireEvent(GameEvent.combo, value: _comboCount);
       }
       _food = _spawns.spawnFood(
         boardWidth: _boardWidth, boardHeight: _boardHeight,
@@ -351,7 +351,7 @@ final class GameplayScene extends Scene {
       );
       _snake = _snake.grow();
       _prevTail = null;
-      _fireEvent(GameEvent.foodEaten);
+      _fireEvent(GameEvent.foodEaten, value: _comboCount);
     }
     if (_snake.length > _maxLength) _maxLength = _snake.length;
     if (!_highScoreBeaten && _highScore > 0 && _score > _highScore) {

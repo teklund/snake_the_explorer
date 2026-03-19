@@ -21,6 +21,9 @@ const _themePrefsKey = 'crt_theme';
 /// SharedPreferences key used to persist the sound mute setting.
 const _mutePrefsKey = 'sound_muted';
 
+/// SharedPreferences key used to track whether the controls overlay has been shown.
+const _controlsSeenPrefsKey = 'controls_seen';
+
 /// A self-contained widget that hosts the entire Snake game.
 ///
 /// On window resize the existing game continues at its original grid size,
@@ -36,7 +39,7 @@ class ConsoleGameWidget extends StatefulWidget {
 }
 
 class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _cellWidth = 10.0;
   static const _cellHeight = 18.0;
 
@@ -57,6 +60,17 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   /// Whether the mute indicator toast is currently visible.
   bool _showMuteIndicator = false;
 
+  /// Whether the controls help overlay is visible.
+  bool _showControls = false;
+
+  /// Whether the reduced-motion accessibility preference is active.
+  /// Updated in [build] from [MediaQuery]; read in event handlers.
+  bool _reducedMotion = false;
+
+  /// Tracks whether we injected a pause when the app went to the background,
+  /// to avoid double-toggling on resume.
+  bool _didPauseForBackground = false;
+
   /// Drives the cursor blink animation. Repeats a 0.0 -> 1.0 cycle every
   /// 530 ms (standard terminal blink rate).
   late final AnimationController _cursorBlinkController;
@@ -75,17 +89,41 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
         setState(() {});
       }
     });
+    WidgetsBinding.instance.addObserver(this);
     _loadTheme();
     _loadMuteSetting();
+    _loadControlsFlag();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cursorBlinkController.dispose();
     _loop?.stop();
     _sound.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  // -------------------------------------------------------------------------
+  // App lifecycle — auto-pause on background
+  // -------------------------------------------------------------------------
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      // Inject a pause action so the game pauses when the app goes to the
+      // background. Clear the queue first to avoid a double-toggle if the
+      // player happened to press pause at the same moment.
+      if (_loop != null && !_quit && !_didPauseForBackground) {
+        _inputProvider.restore();
+        _inputProvider.handleSwipe(InputAction.pause);
+        _didPauseForBackground = true;
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _didPauseForBackground = false;
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -140,17 +178,34 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   }
 
   // -------------------------------------------------------------------------
+  // Controls overlay
+  // -------------------------------------------------------------------------
+
+  Future<void> _loadControlsFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool(_controlsSeenPrefsKey) ?? false) && mounted) {
+      setState(() => _showControls = true);
+    }
+  }
+
+  Future<void> _dismissControls() async {
+    setState(() => _showControls = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_controlsSeenPrefsKey, true);
+  }
+
+  // -------------------------------------------------------------------------
   // Mobile detection
   // -------------------------------------------------------------------------
 
-  /// Detects mobile web browsers that [defaultTargetPlatform] might miss
+  /// Detects touch-primary web contexts that [defaultTargetPlatform] might miss
   /// (e.g. iPads in desktop mode report as [TargetPlatform.macOS]).
-  /// Falls back to a narrow-viewport heuristic when running on the web.
+  /// Uses 900 dp as the viewport threshold to include tablets (iPads are
+  /// typically 768 dp on the short side in landscape).
   static bool _isMobileWeb(BuildContext context) {
     if (!kIsWeb) return false;
     final shortestSide = MediaQuery.sizeOf(context).shortestSide;
-    // Treat viewports whose shortest side is <=600 dp as mobile/tablet.
-    return shortestSide <= 600;
+    return shortestSide <= 900;
   }
 
   // -------------------------------------------------------------------------
@@ -190,13 +245,16 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
       }
     }
 
-    // The grid position from core uses a +1 offset for the border,
-    // so pass the raw col/row — the particle overlay maps to pixels.
-    _particleKey.currentState?.spawnEvent(
-      data.event,
-      col: data.col + 1, // +1 for border offset
-      row: data.row + 1,
-    );
+    // Skip particles and score labels when reduced-motion is enabled.
+    if (!_reducedMotion) {
+      // The grid position from core uses a +1 offset for the border.
+      _particleKey.currentState?.spawnEvent(
+        data.event,
+        col: data.col + 1,
+        row: data.row + 1,
+        value: data.value,
+      );
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -247,6 +305,11 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      // Dismiss the controls overlay on any key press.
+      if (_showControls) {
+        _dismissControls();
+        return;
+      }
       // Intercept the T key for theme cycling before forwarding to the game.
       if (event.logicalKey == LogicalKeyboardKey.keyT) {
         _cycleTheme();
@@ -255,6 +318,11 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
       // Intercept the M key for sound mute toggling.
       if (event.logicalKey == LogicalKeyboardKey.keyM) {
         _toggleMute();
+        return;
+      }
+      // ? (or /) shows the controls overlay.
+      if (event.character == '?' || event.logicalKey == LogicalKeyboardKey.slash) {
+        setState(() => _showControls = true);
         return;
       }
     }
@@ -267,12 +335,27 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
-      child: SwipeDetector(
-        onSwipe: _inputProvider.handleSwipe,
+    // Cache the accessibility preference so event handlers can read it without
+    // a BuildContext (they run on the game loop, not inside build).
+    _reducedMotion = MediaQuery.of(context).disableAnimations;
+
+    return PopScope(
+      // When the controls overlay is up, intercept the system back gesture to
+      // dismiss it instead of exiting the app.
+      canPop: !_showControls,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _showControls) _dismissControls();
+      },
+      child: KeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: SwipeDetector(
+        // When the controls overlay is up, redirect all swipe/tap actions to
+        // dismiss it rather than forwarding them to the game.
+        onSwipe: _showControls
+            ? (_) => _dismissControls()
+            : _inputProvider.handleSwipe,
         child: Container(
           color: _theme.backgroundColor,
           child: LayoutBuilder(
@@ -307,42 +390,44 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
               if (_quit) {
                 // Render quit screen in terminal style — monospace text on
                 // dark background, matching the CRT aesthetic.
+                // Tapping anywhere restarts the game.
                 final quitColor = _theme.mapColor(AnsiColor.green);
                 final mutedColor = _theme.mapColor(AnsiColor.darkGray);
-                return Center(
-                  child: TerminalChrome(
-                    backgroundColor: _theme.backgroundColor,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 24,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Thanks for playing!',
-                            style: TextStyle(
-                              color: quitColor,
-                              fontFamily: 'JetBrainsMono',
-                              fontSize: 18,
-                              decoration: TextDecoration.none,
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _startGame(maxColumns, maxRows),
+                  child: Center(
+                    child: TerminalChrome(
+                      backgroundColor: _theme.backgroundColor,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 24,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Thanks for playing!',
+                              style: TextStyle(
+                                color: quitColor,
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 18,
+                                decoration: TextDecoration.none,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '\$ _',
-                            style: TextStyle(
-                              color: mutedColor,
-                              fontFamily: 'JetBrainsMono',
-                              fontSize: 14,
-                              decoration: TextDecoration.none,
+                            const SizedBox(height: 8),
+                            Text(
+                              '\$ _',
+                              style: TextStyle(
+                                color: mutedColor,
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 14,
+                                decoration: TextDecoration.none,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          GestureDetector(
-                            onTap: () => _startGame(maxColumns, maxRows),
-                            child: Text(
+                            const SizedBox(height: 16),
+                            Text(
                               '[ Play Again ]',
                               style: TextStyle(
                                 color: quitColor,
@@ -351,8 +436,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                                 decoration: TextDecoration.none,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -463,11 +548,121 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                         ),
                       ),
                     ),
+                  // Controls help overlay — absorbs all input while visible.
+                  if (_showControls)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _dismissControls,
+                        child: _ControlsOverlay(theme: _theme),
+                      ),
+                    ),
                 ],
               );
             },
           ),
         ),
+      ),
+    ),
+  );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Controls help overlay
+// -----------------------------------------------------------------------------
+
+final class _ControlsOverlay extends StatelessWidget {
+  final CrtTheme theme;
+
+  const _ControlsOverlay({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = theme.glowColor;
+    final dimColor = theme.mapColor(AnsiColor.darkGray);
+
+    final titleStyle = TextStyle(
+      color: accentColor,
+      fontFamily: 'JetBrainsMono',
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      decoration: TextDecoration.none,
+    );
+    final keyStyle = TextStyle(
+      color: accentColor,
+      fontFamily: 'JetBrainsMono',
+      fontSize: 13,
+      decoration: TextDecoration.none,
+    );
+    final actionStyle = TextStyle(
+      color: dimColor,
+      fontFamily: 'JetBrainsMono',
+      fontSize: 13,
+      decoration: TextDecoration.none,
+    );
+    final hintStyle = TextStyle(
+      color: dimColor,
+      fontFamily: 'JetBrainsMono',
+      fontSize: 11,
+      decoration: TextDecoration.none,
+    );
+
+    return Container(
+      color: Colors.black.withValues(alpha: 0.88),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0A0A),
+            border: Border.all(
+              color: theme.glowColor.withValues(alpha: 0.5),
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('CONTROLS', style: titleStyle),
+              const SizedBox(height: 10),
+              Text('KEYBOARD / GAMEPAD', style: hintStyle),
+              const SizedBox(height: 6),
+              _keyRow('↑↓←→ / WASD', 'Move', keyStyle, actionStyle),
+              _keyRow('P', 'Pause / Resume', keyStyle, actionStyle),
+              _keyRow('Q / Esc', 'Quit to menu', keyStyle, actionStyle),
+              _keyRow('T', 'Cycle CRT theme', keyStyle, actionStyle),
+              _keyRow('M', 'Mute / Unmute', keyStyle, actionStyle),
+              _keyRow('?', 'Show controls', keyStyle, actionStyle),
+              const SizedBox(height: 10),
+              Text('TOUCH / SWIPE', style: hintStyle),
+              const SizedBox(height: 6),
+              _keyRow('Swipe', 'Move', keyStyle, actionStyle),
+              _keyRow('Tap', 'Confirm / retry', keyStyle, actionStyle),
+              _keyRow('D-pad', 'Move (hold to repeat)', keyStyle, actionStyle),
+              const SizedBox(height: 14),
+              Text('tap or press any key to dismiss', style: hintStyle),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _keyRow(
+    String key,
+    String action,
+    TextStyle keyStyle,
+    TextStyle actionStyle,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: 148, child: Text(key, style: keyStyle)),
+          Text(action, style: actionStyle),
+        ],
       ),
     );
   }

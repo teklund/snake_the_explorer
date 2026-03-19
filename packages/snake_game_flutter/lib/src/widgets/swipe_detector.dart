@@ -18,10 +18,13 @@ class SwipeDetector extends StatelessWidget {
       onPanEnd: (d) {
         if (start == null) return;
         final velocity = d.velocity.pixelsPerSecond;
-        if (velocity.dx.abs() > velocity.dy.abs()) {
-          onSwipe(velocity.dx > 0 ? InputAction.moveRight : InputAction.moveLeft);
-        } else {
-          onSwipe(velocity.dy > 0 ? InputAction.moveDown : InputAction.moveUp);
+        // Ignore accidental slow drags; require a deliberate swipe speed.
+        if (velocity.distance >= 150.0) {
+          if (velocity.dx.abs() > velocity.dy.abs()) {
+            onSwipe(velocity.dx > 0 ? InputAction.moveRight : InputAction.moveLeft);
+          } else {
+            onSwipe(velocity.dy > 0 ? InputAction.moveDown : InputAction.moveUp);
+          }
         }
         start = null;
       },

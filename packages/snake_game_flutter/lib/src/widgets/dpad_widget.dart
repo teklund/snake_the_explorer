@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:snake_game_core/snake_game_core.dart';
 
 /// A translucent on-screen D-pad for touch/mobile devices.
 ///
 /// Positioned in the bottom-right corner, it fires [InputAction] values
-/// through [onInput] when the user taps one of the four directional buttons.
+/// through [onInput] when the user taps or holds one of the four directional
+/// buttons. Holding a button repeats the action after an initial delay,
+/// matching standard key-repeat behaviour.
 class DpadWidget extends StatelessWidget {
   final void Function(InputAction action) onInput;
 
@@ -19,40 +23,40 @@ class DpadWidget extends StatelessWidget {
         height: 160,
         child: Stack(
           children: [
-            // Up
             Align(
               alignment: Alignment.topCenter,
               child: _DpadButton(
                 icon: Icons.keyboard_arrow_up,
                 semanticLabel: 'Move up',
-                onTap: () => onInput(InputAction.moveUp),
+                action: InputAction.moveUp,
+                onInput: onInput,
               ),
             ),
-            // Down
             Align(
               alignment: Alignment.bottomCenter,
               child: _DpadButton(
                 icon: Icons.keyboard_arrow_down,
                 semanticLabel: 'Move down',
-                onTap: () => onInput(InputAction.moveDown),
+                action: InputAction.moveDown,
+                onInput: onInput,
               ),
             ),
-            // Left
             Align(
               alignment: Alignment.centerLeft,
               child: _DpadButton(
                 icon: Icons.keyboard_arrow_left,
                 semanticLabel: 'Move left',
-                onTap: () => onInput(InputAction.moveLeft),
+                action: InputAction.moveLeft,
+                onInput: onInput,
               ),
             ),
-            // Right
             Align(
               alignment: Alignment.centerRight,
               child: _DpadButton(
                 icon: Icons.keyboard_arrow_right,
                 semanticLabel: 'Move right',
-                onTap: () => onInput(InputAction.moveRight),
+                action: InputAction.moveRight,
+                onInput: onInput,
               ),
             ),
           ],
@@ -62,33 +66,76 @@ class DpadWidget extends StatelessWidget {
   }
 }
 
-class _DpadButton extends StatelessWidget {
+class _DpadButton extends StatefulWidget {
   final IconData icon;
   final String semanticLabel;
-  final VoidCallback onTap;
+  final InputAction action;
+  final void Function(InputAction) onInput;
 
   const _DpadButton({
     required this.icon,
     required this.semanticLabel,
-    required this.onTap,
+    required this.action,
+    required this.onInput,
   });
+
+  @override
+  State<_DpadButton> createState() => _DpadButtonState();
+}
+
+class _DpadButtonState extends State<_DpadButton> {
+  Timer? _repeatTimer;
+  bool _pressed = false;
+
+  void _start() {
+    if (!mounted) return;
+    setState(() => _pressed = true);
+    widget.onInput(widget.action); // Fire immediately on touch-down
+    // After initial delay, start repeating (matches OS key-repeat cadence).
+    _repeatTimer = Timer(const Duration(milliseconds: 400), () {
+      _repeatTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+        if (mounted) widget.onInput(widget.action);
+      });
+    });
+  }
+
+  void _stop() {
+    _repeatTimer?.cancel();
+    _repeatTimer = null;
+    if (mounted) setState(() => _pressed = false);
+  }
+
+  @override
+  void dispose() {
+    _repeatTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: semanticLabel,
+      label: widget.semanticLabel,
       child: GestureDetector(
-        onTap: onTap,
-        child: Container(
+        onTapDown: (_) => _start(),
+        onTapUp: (_) => _stop(),
+        onTapCancel: _stop,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: const Color(0x33FFFFFF),
+            color: _pressed
+                ? const Color(0x55FFFFFF)
+                : const Color(0x33FFFFFF),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0x44FFFFFF)),
+            border: Border.all(
+              color: _pressed
+                  ? const Color(0x66FFFFFF)
+                  : const Color(0x44FFFFFF),
+            ),
           ),
-          child: Icon(icon, color: const Color(0x88FFFFFF), size: 32),
+          child: Icon(widget.icon, color: const Color(0x88FFFFFF), size: 32),
         ),
       ),
     );

@@ -10,4 +10,5 @@ enum GameEvent {
 }
 
 /// Payload for a game event including the grid position where it occurred.
-typedef GameEventData = ({GameEvent event, int col, int row});
+/// [value] carries event-specific numeric data (e.g. score delta, combo count).
+typedef GameEventData = ({GameEvent event, int col, int row, int value});

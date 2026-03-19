@@ -28,11 +28,13 @@ Thumbs.db
 # Environment / secrets
 .env
 .env.*
+.envrc
 *.key
 *.pem
 
 # Claude
 .claude/
+.mcp.json
 
 # Coverage
 coverage/
