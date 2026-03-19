@@ -34,6 +34,7 @@ Thumbs.db
 
 # Claude
 .claude/
+.mcp.json
 
 # Coverage
 coverage/
