@@ -67,6 +67,10 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   /// Updated in [build] from [MediaQuery]; read in event handlers.
   bool _reducedMotion = false;
 
+  /// Whether the keyboard was the last input method used. Used to hide the
+  /// D-pad and mouse cursor for immersion on desktop.
+  bool _keyboardUsed = false;
+
   /// Tracks whether we injected a pause when the app went to the background,
   /// to avoid double-toggling on resume.
   bool _didPauseForBackground = false;
@@ -304,6 +308,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
   // -------------------------------------------------------------------------
 
   void _handleKeyEvent(KeyEvent event) {
+    if (!_keyboardUsed) setState(() => _keyboardUsed = true);
+
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
       // Dismiss the controls overlay on any key press.
       if (_showControls) {
@@ -346,11 +352,20 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _showControls) _dismissControls();
       },
-      child: KeyboardListener(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: _handleKeyEvent,
-        child: SwipeDetector(
+      child: MouseRegion(
+        cursor: _keyboardUsed ? SystemMouseCursors.none : SystemMouseCursors.basic,
+        onHover: (_) {
+          if (_keyboardUsed) setState(() => _keyboardUsed = false);
+        },
+        child: Listener(
+          onPointerDown: (_) {
+            if (_keyboardUsed) setState(() => _keyboardUsed = false);
+          },
+          child: KeyboardListener(
+            focusNode: _focusNode,
+            autofocus: true,
+            onKeyEvent: _handleKeyEvent,
+            child: SwipeDetector(
         // When the controls overlay is up, redirect all swipe/tap actions to
         // dismiss it rather than forwarding them to the game.
         onSwipe: _showControls
@@ -373,27 +388,6 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                       fontFamily: 'JetBrainsMono',
                       fontSize: 14,
                       decoration: TextDecoration.none,
-                    ),
-                  ),
-                );
-              }
-
-              // Portrait phones/web: menu needs ~55 columns; prompt to rotate
-              // rather than rendering clipped UI.
-              if (constraints.maxHeight > constraints.maxWidth &&
-                  maxColumns < 55) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Rotate device\nfor best experience',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _theme.mapColor(AnsiColor.green),
-                        fontFamily: 'JetBrainsMono',
-                        fontSize: 20,
-                        decoration: TextDecoration.none,
-                      ),
                     ),
                   ),
                 );
@@ -523,7 +517,7 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                   defaultTargetPlatform == TargetPlatform.android ||
                   _isMobileWeb(context);
 
-              Widget content = isMobile
+              Widget content = (isMobile && !_keyboardUsed)
                   ? Stack(
                       children: [
                         gameCanvas,
@@ -598,6 +592,8 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
             },
           ),
         ),
+      ),
+      ),
       ),
     ),
   );

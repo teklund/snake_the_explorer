@@ -47,21 +47,25 @@ final class HighScoresScene extends Scene {
     if (_rendered) return;
     renderer.clearScreen();
 
-    const col = 10;
+    // Box is 23 chars wide; center horizontally and vertically.
+    final col = (_boardColumns - 23) ~/ 2;
+    // Content: header(3) + blank(1) + modes*2 + blank(1) + divider(1) + action(1) = 3+1+6+1+1+1 = 13
+    const contentHeight = 13;
+    final r0 = _boardRows > contentHeight ? (_boardRows - contentHeight) ~/ 2 : 0;
 
     renderer.setColor(AnsiColor.yellow);
-    renderer.moveCursor(4, col);
+    renderer.moveCursor(r0, col);
     renderer.write('+---------------------+');
-    renderer.moveCursor(5, col);
+    renderer.moveCursor(r0 + 1, col);
     renderer.write('|     HIGH SCORES     |');
-    renderer.moveCursor(6, col);
+    renderer.moveCursor(r0 + 2, col);
     renderer.write('+---------------------+');
 
     for (var i = 0; i < _modes.length; i++) {
       final mode = _modes[i];
       final label = _labels[i];
       final score = _scoreRepo.load(mode.name);
-      final row = 8 + i * 2;
+      final row = r0 + 4 + i * 2;
 
       renderer.setColor(AnsiColor.cyan);
       renderer.moveCursor(row, col);
@@ -72,7 +76,7 @@ final class HighScoresScene extends Scene {
       renderer.write('    ${score > 0 ? score.toString() : '---'}');
     }
 
-    final actionsRow = 8 + _modes.length * 2 + 1;
+    final actionsRow = r0 + 4 + _modes.length * 2 + 1;
     renderer.setColor(AnsiColor.darkGray);
     renderer.moveCursor(actionsRow, col);
     renderer.write('─' * 23);

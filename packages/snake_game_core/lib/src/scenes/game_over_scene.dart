@@ -68,7 +68,7 @@ final class GameOverScene extends Scene {
     // Box is 23 chars wide; center it horizontally and vertically.
     // Content height: 17 rows (16 without portal line).
     final contentHeight = stats.portalsUsed > 0 ? 17 : 16;
-    final r0 = ((_boardRows - contentHeight) ~/ 2).clamp(1, _boardRows - contentHeight);
+    final r0 = _boardRows > contentHeight ? (_boardRows - contentHeight) ~/ 2 : 0;
     final col = (_boardColumns - 23) ~/ 2;
     final isNewBest = score > 0 && score >= highScore;
 

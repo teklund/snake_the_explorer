@@ -91,11 +91,16 @@ final class MenuScene extends Scene {
     if (_rendered) return;
     renderer.clearScreen();
 
-    // Content block is 51 chars wide (help line); center it.
-    // On small screens (< 26 rows) use tighter item spacing so everything fits.
-    final col = ((_boardColumns - 51) ~/ 2).clamp(2, _boardColumns ~/ 2);
+    // Narrow mode: < 50 cols (portrait phones give ~39). Drop per-item
+    // descriptions and split the help line so everything fits in ~35 chars.
+    // Wide mode (>= 50) keeps the full layout with descriptions.
+    final isNarrow = _boardColumns < 50;
+    // Widest content: 32 chars (divider) narrow, 51 chars (help line) wide.
+    final contentWidth = isNarrow ? 32 : 51;
+    final col = _boardColumns > contentWidth
+        ? (_boardColumns - contentWidth) ~/ 2
+        : 0;
     final spacing = _boardRows >= 26 ? 3 : 2;
-    // Logo starts 1 row from top on tight screens, 4 rows otherwise.
     final logoRow = _boardRows >= 26 ? 4 : 1;
 
     renderer.setColor(AnsiColor.brightGreen);
@@ -121,10 +126,14 @@ final class MenuScene extends Scene {
       renderer.moveCursor(itemsStartRow + i * spacing, col);
       if (isActive) {
         renderer.setColor(AnsiColor.yellow);
-        renderer.write('▶ ${_labels[i].padRight(13)} ${_descs[i]}');
+        renderer.write(isNarrow
+            ? '▶ ${_labels[i]}'
+            : '▶ ${_labels[i].padRight(13)} ${_descs[i]}');
       } else {
         renderer.setColor(AnsiColor.darkGray);
-        renderer.write('  ${_labels[i].padRight(13)} ${_descs[i]}');
+        renderer.write(isNarrow
+            ? '  ${_labels[i]}'
+            : '  ${_labels[i].padRight(13)} ${_descs[i]}');
       }
       renderer.setColor(AnsiColor.reset);
     }
@@ -135,10 +144,14 @@ final class MenuScene extends Scene {
     renderer.moveCursor(hsRow, col);
     if (hsActive) {
       renderer.setColor(AnsiColor.yellow);
-      renderer.write('▶ ${_highScoresLabel.padRight(13)} $_highScoresDesc');
+      renderer.write(isNarrow
+          ? '▶ $_highScoresLabel'
+          : '▶ ${_highScoresLabel.padRight(13)} $_highScoresDesc');
     } else {
       renderer.setColor(AnsiColor.darkGray);
-      renderer.write('  ${_highScoresLabel.padRight(13)} $_highScoresDesc');
+      renderer.write(isNarrow
+          ? '  $_highScoresLabel'
+          : '  ${_highScoresLabel.padRight(13)} $_highScoresDesc');
     }
     renderer.setColor(AnsiColor.reset);
 
@@ -152,13 +165,22 @@ final class MenuScene extends Scene {
     renderer.write('Difficulty: $leftArrow $diffLabel $rightArrow');
     renderer.setColor(AnsiColor.reset);
 
-    renderer.moveCursor(hsRow + 4, col);
     renderer.setColor(AnsiColor.darkGray);
-    renderer.write('↑ ↓ select   ← → difficulty   Enter start   Q quit');
+    if (isNarrow) {
+      // Split help onto two lines to fit narrow portrait screens.
+      renderer.moveCursor(hsRow + 4, col);
+      renderer.write('↑↓ select  Enter start');
+      renderer.moveCursor(hsRow + 5, col);
+      renderer.write('←→ difficulty  Q quit');
+    } else {
+      renderer.moveCursor(hsRow + 4, col);
+      renderer.write('↑ ↓ select   ← → difficulty   Enter start   Q quit');
+    }
     renderer.setColor(AnsiColor.reset);
 
     // Per-mode bests
-    renderer.moveCursor(hsRow + 5, col);
+    final bestsRow = isNarrow ? hsRow + 7 : hsRow + 6;
+    renderer.moveCursor(bestsRow, col);
     renderer.setColor(AnsiColor.cyan);
     final bests = _modes.map((m) {
       final b = _scoreRepo.load(m.name);

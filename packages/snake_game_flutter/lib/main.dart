@@ -10,12 +10,6 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final scoreRepo = PrefsScoreRepository(prefs);
 
-  // Lock to landscape on mobile for better grid space.
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
-
   // Dark system chrome for the retro vibe.
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
