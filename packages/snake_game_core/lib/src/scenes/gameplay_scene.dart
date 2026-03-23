@@ -122,8 +122,8 @@ final class GameplayScene extends Scene {
           direction: Direction.right,
         ),
         _food = const Vector2(10, 5) {
-    _boardWidth = (_boardColumns - 2).clamp(_minBoardWidth, 120);
-    _boardHeight = (_boardRows - _hudRows).clamp(_minBoardHeight, 40);
+    _boardWidth = (_boardColumns - 2).clamp(_minBoardWidth, _boardColumns - 2);
+    _boardHeight = (_boardRows - _hudRows).clamp(_minBoardHeight, _boardRows - _hudRows);
     if (_mode == GameMode.timeAttack) _startTime = _time.now();
   }
 
