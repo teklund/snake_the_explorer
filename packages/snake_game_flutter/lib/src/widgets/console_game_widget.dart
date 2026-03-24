@@ -393,25 +393,18 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                 );
               }
 
-              // On mobile and web, scale cells to fill the screen exactly so
-              // game walls reach the screen edges. On desktop the floating
-              // terminal-window look is intentional and cells stay nominal.
-              final fillScreen = kIsWeb ||
-                  defaultTargetPlatform == TargetPlatform.iOS ||
-                  defaultTargetPlatform == TargetPlatform.android;
-              final effectiveCellWidth = fillScreen
-                  ? constraints.maxWidth / maxColumns
-                  : _cellWidth;
-              final effectiveCellHeight = fillScreen
-                  ? constraints.maxHeight / maxRows
-                  : _cellHeight;
+              // Cap the game board at classic console dimensions. The canvas
+              // is then centered (letterboxed) on all platforms, so walls
+              // always reach the canvas edges without floating-point gaps.
+              final gameColumns = maxColumns.clamp(20, 80);
+              final gameRows = maxRows.clamp(10, 40);
 
               // Start a game if none is running yet.
               final r = _renderer;
               if (r == null && !_starting) {
                 _starting = true;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _startGame(maxColumns, maxRows);
+                  _startGame(gameColumns, gameRows);
                 });
               }
 
@@ -423,7 +416,7 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                 final mutedColor = _theme.mapColor(AnsiColor.darkGray);
                 return GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _startGame(maxColumns, maxRows),
+                  onTap: () => _startGame(gameColumns, gameRows),
                   child: Center(
                     child: TerminalChrome(
                       backgroundColor: _theme.backgroundColor,
@@ -476,26 +469,24 @@ class _ConsoleGameWidgetState extends State<ConsoleGameWidget>
                 return const SizedBox.shrink();
               }
 
-              final canvasWidth =
-                  fillScreen ? constraints.maxWidth : r.columns * _cellWidth;
-              final canvasHeight =
-                  fillScreen ? constraints.maxHeight : r.rows * _cellHeight;
+              final canvasWidth = r.columns * _cellWidth;
+              final canvasHeight = r.rows * _cellHeight;
 
               final gameCanvas = Semantics(
                 label: 'Snake game canvas',
                 excludeSemantics: true,
                 child: ParticleOverlay(
                   key: _particleKey,
-                  cellWidth: effectiveCellWidth,
-                  cellHeight: effectiveCellHeight,
+                  cellWidth: _cellWidth,
+                  cellHeight: _cellHeight,
                   child: CrtOverlay(
                     glowColor: _theme.glowColor,
                     scanlineTint: _theme.scanlineTint,
                     child: CustomPaint(
                       painter: ConsoleGridPainter(
                         buffer: r.buffer,
-                        cellWidth: effectiveCellWidth,
-                        cellHeight: effectiveCellHeight,
+                        cellWidth: _cellWidth,
+                        cellHeight: _cellHeight,
                         theme: _theme,
                         cursorVisible: r.cursorVisible,
                         cursorRow: r.cursorRow,
