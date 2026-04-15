@@ -223,7 +223,7 @@ jobs:
         run: cp packages/snake_game_flutter/web/CNAME packages/snake_game_flutter/build/web/CNAME
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: packages/snake_game_flutter/build/web
 
